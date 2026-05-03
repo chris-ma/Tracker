@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-dark: #080810;
+  --purple: #8B5CF6;
+  --cyan: #06B6D4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background-color: var(--bg-dark);
+  color: #e2e8f0;
+  font-family: var(--font-geist-sans, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.6);
+}
+
+/* Glass card */
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #8B5CF6, #06B6D4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow button */
+.btn-primary {
+  @apply relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all duration-200;
+  background: linear-gradient(135deg, #8B5CF6, #06B6D4);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+}
+.btn-primary:hover {
+  box-shadow: 0 0 32px rgba(139, 92, 246, 0.5);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-ghost {
+  @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm text-white/70 transition-all duration-200;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Input */
+.input-field {
+  @apply w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-white/30 outline-none transition-all duration-200;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.input-field:focus {
+  border-color: rgba(139, 92, 246, 0.6);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* Aurora background */
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(139, 92, 246, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 35% at 80% 70%, rgba(6, 182, 212, 0.1) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
+}
