@@ -77,6 +77,8 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
   const pathname = usePathname();
   const [activeTypes, setActiveTypes] = useState<EventType[]>(["mouse_move", "click", "eye_gaze", "scroll"]);
   const [embedOpen, setEmbedOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleRangeChange = useCallback((range: DateRange, from?: string, to?: string) => {
     const params = new URLSearchParams({ range });
@@ -93,6 +95,24 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
     if (device !== "all") params.set("device", device);
     router.push(`${pathname}?${params.toString()}`);
   }, [router, pathname, currentRange, customFrom, customTo]);
+
+  const handleScreenshotUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("apiKey", site.api_key);
+      fd.append("pageKey", page.page_key);
+      fd.append("image", file, "screenshot.jpg");
+      const res = await fetch("/api/screenshot", { method: "POST", body: fd });
+      if (res.ok) router.refresh();
+      else console.error("Upload failed", await res.text());
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [site.api_key, page.page_key, router]);
 
   function toggleType(type: EventType) {
     setActiveTypes((prev) =>
@@ -121,11 +141,33 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M7 17L17 7M7 7h10v10" /></svg>
           </a>
         </div>
-        <button onClick={() => setEmbedOpen(true)} className="btn-ghost text-xs sm:text-sm flex-shrink-0">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6" /></svg>
-          <span className="hidden sm:inline">Get Embed Code</span>
-          <span className="sm:hidden">Embed</span>
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleScreenshotUpload}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="btn-ghost text-xs sm:text-sm"
+            title="Upload a screenshot of this page to use as the heatmap background"
+          >
+            {uploading
+              ? <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
+              : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+            }
+            <span className="hidden sm:inline">{uploading ? "Uploading…" : "Upload Screenshot"}</span>
+            <span className="sm:hidden">{uploading ? "…" : "Upload"}</span>
+          </button>
+          <button onClick={() => setEmbedOpen(true)} className="btn-ghost text-xs sm:text-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6" /></svg>
+            <span className="hidden sm:inline">Get Embed Code</span>
+            <span className="sm:hidden">Embed</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats bar */}
