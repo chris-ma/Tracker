@@ -282,6 +282,18 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
         pageKey={page.page_key}
         pageName={page.name}
       />
+
+      {/* Debug panel */}
+      <DebugPanel
+        events={events}
+        stats={stats}
+        screenshotUrl={screenshotUrl}
+        currentRange={currentRange}
+        currentDevice={currentDevice}
+        deviceCounts={deviceCounts}
+        apiKey={site.api_key}
+        pageKey={page.page_key}
+      />
     </div>
   );
 }
@@ -291,6 +303,132 @@ function StatCard({ label, value, color }: { label: string; value: number; color
     <div className="glass rounded-xl p-3 sm:p-4">
       <p className="text-xs text-white/40 mb-1 uppercase tracking-wider">{label}</p>
       <p className="text-xl sm:text-2xl font-bold" style={{ color }}>{value.toLocaleString()}</p>
+    </div>
+  );
+}
+
+function DebugPanel({
+  events,
+  stats,
+  screenshotUrl,
+  currentRange,
+  currentDevice,
+  deviceCounts,
+  apiKey,
+  pageKey,
+}: {
+  events: { event_type: EventType; x: number; y: number; created_at: string }[];
+  stats: Record<string, number>;
+  screenshotUrl: string | null;
+  currentRange: string;
+  currentDevice: string;
+  deviceCounts: { mobile: number; tablet: number; desktop: number };
+  apiKey: string;
+  pageKey: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const recent = events.slice(-20).reverse();
+
+  return (
+    <div className="mt-6 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-xs font-mono text-white/40 hover:text-white/60 transition-colors"
+        style={{ background: "rgba(255,255,255,0.03)" }}
+      >
+        <span className="flex items-center gap-2">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
+          </svg>
+          Debug log — {events.length} events captured
+        </span>
+        <svg
+          width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="p-4 space-y-4 font-mono text-xs" style={{ background: "rgba(0,0,0,0.4)" }}>
+          {/* Config */}
+          <section>
+            <p className="text-white/30 mb-2 uppercase tracking-wider text-[10px]">Config</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { k: "api_key", v: apiKey },
+                { k: "page_key", v: pageKey },
+                { k: "range", v: currentRange },
+                { k: "device", v: currentDevice },
+                { k: "screenshot", v: screenshotUrl ? "✓ loaded" : "✗ none" },
+              ].map(({ k, v }) => (
+                <div key={k} className="rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <p className="text-white/30 mb-0.5">{k}</p>
+                  <p className="text-white/70 truncate">{v}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Session counts */}
+          <section>
+            <p className="text-white/30 mb-2 uppercase tracking-wider text-[10px]">Sessions by device</p>
+            <div className="flex gap-2">
+              {(["mobile", "tablet", "desktop"] as const).map((d) => (
+                <div key={d} className="rounded-lg px-3 py-2 flex-1" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <p className="text-white/30 mb-0.5">{d}</p>
+                  <p className="text-white/70">{deviceCounts[d]}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Event counts */}
+          <section>
+            <p className="text-white/30 mb-2 uppercase tracking-wider text-[10px]">Event counts</p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(stats).map(([k, v]) => (
+                <div key={k} className="rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <p className="text-white/30 mb-0.5">{k}</p>
+                  <p className="text-white/70">{v}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Recent events */}
+          <section>
+            <p className="text-white/30 mb-2 uppercase tracking-wider text-[10px]">Last {recent.length} events (newest first)</p>
+            {recent.length === 0 ? (
+              <p className="text-white/20 italic">No events in selected range / device filter</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="text-white/25 text-[10px] uppercase">
+                      <th className="pr-4 pb-1">type</th>
+                      <th className="pr-4 pb-1">x</th>
+                      <th className="pr-4 pb-1">y</th>
+                      <th className="pb-1">timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recent.map((e, i) => (
+                      <tr key={i} className="border-t" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+                        <td className="pr-4 py-1 text-white/60">{e.event_type}</td>
+                        <td className="pr-4 py-1 text-white/40">{e.x.toFixed(3)}</td>
+                        <td className="pr-4 py-1 text-white/40">{e.y.toFixed(3)}</td>
+                        <td className="py-1 text-white/30">{new Date(e.created_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }
