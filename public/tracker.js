@@ -31,10 +31,18 @@
   var lastMouseTime = 0;
   var THROTTLE_MS = 50;
 
-  // ── Session creation ──────────────────────────────────────────────────────
-  function initSession() {
-    flush({ init: true });
-  }
+  // ── Load html2canvas immediately (before DOMContentLoaded) ────────────────
+  // Starting early maximises the chance it's ready before the user navigates away.
+  var h2cLoaded = false;
+  var screenshotSent = false;
+  (function () {
+    var s = document.createElement('script');
+    s.src = BASE_URL + '/html2canvas.min.js';
+    s.async = true;
+    s.onload = function () { h2cLoaded = true; };
+    s.onerror = function () { console.warn('[Tracker] html2canvas load failed'); };
+    (document.head || document.documentElement).appendChild(s);
+  })();
 
   // ── Event queue ───────────────────────────────────────────────────────────
   function push(type, x, y) {
@@ -71,13 +79,9 @@
       })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-          if (!sessionId && data.sessionId) {
-            sessionId = data.sessionId;
-          }
+          if (!sessionId && data.sessionId) sessionId = data.sessionId;
         })
-        .catch(function (err) {
-          console.warn('[Tracker] Event flush error:', err);
-        });
+        .catch(function (err) { console.warn('[Tracker] Event flush error:', err); });
     }
   }
 
@@ -93,7 +97,6 @@
     push('click', e.clientX, e.clientY);
   });
 
-  // Touch equivalents for mobile
   var lastTouchTime = 0;
   document.addEventListener('touchmove', function (e) {
     var now = Date.now();
@@ -110,51 +113,80 @@
 
   // ── Scroll tracking ───────────────────────────────────────────────────────
   var lastScrollTime = 0;
-  var SCROLL_THROTTLE_MS = 200;
   document.addEventListener('scroll', function () {
     var now = Date.now();
-    if (now - lastScrollTime < SCROLL_THROTTLE_MS) return;
+    if (now - lastScrollTime < 200) return;
     lastScrollTime = now;
     var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
     if (maxScroll <= 0) return;
-    var scrollFraction = Math.max(0, Math.min(1, window.scrollY / maxScroll));
-    // x=0.5 (centre), y=scroll depth as fraction of total scrollable height
-    eventQueue.push({ type: 'scroll', x: 0.5, y: scrollFraction, ts: now });
+    var frac = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+    eventQueue.push({ type: 'scroll', x: 0.5, y: frac, ts: now });
   }, { passive: true });
 
   // ── Batch flush interval ──────────────────────────────────────────────────
   setInterval(flush, 2000);
 
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'hidden') flush();
-  });
+  // ── Screenshot capture ────────────────────────────────────────────────────
+  function doScreenshot() {
+    if (screenshotSent || !h2cLoaded) return;
+    screenshotSent = true;
+    window.html2canvas(document.documentElement, {
+      logging: false,
+      useCORS: true,
+      allowTaint: true,
+      scale: 0.25,
+      windowWidth: window.innerWidth,
+      windowHeight: window.innerHeight,
+      height: window.innerHeight,
+      y: window.scrollY,
+    }).then(function (canvas) {
+      canvas.toBlob(function (blob) {
+        if (!blob) return;
+        var fd = new FormData();
+        fd.append('apiKey', API_KEY);
+        fd.append('pageKey', PAGE_KEY);
+        fd.append('image', blob, 'screenshot.jpg');
+        // sendBeacon persists even when the page is backgrounded or unloading
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(BASE_URL + '/api/screenshot', fd);
+        } else {
+          fetch(BASE_URL + '/api/screenshot', { method: 'POST', body: fd, keepalive: true })
+            .catch(function (err) { console.warn('[Tracker] Screenshot upload error:', err); });
+        }
+      }, 'image/jpeg', 0.6);
+    }).catch(function (err) {
+      screenshotSent = false; // allow retry
+      console.warn('[Tracker] html2canvas error:', err);
+    });
+  }
+
+  // Poll until h2c is ready then shoot; gives up after 15s
+  function scheduleScreenshot() {
+    if (h2cLoaded) { doScreenshot(); return; }
+    var waited = 0;
+    var iv = setInterval(function () {
+      waited += 300;
+      if (h2cLoaded) { clearInterval(iv); doScreenshot(); return; }
+      if (waited >= 15000) clearInterval(iv);
+    }, 300);
+  }
 
   // ── Eye tracking ──────────────────────────────────────────────────────────
   function loadWebGazer() {
     var s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/webgazer@2.1.0/dist/webgazer.js';
-    s.onerror = function () {
-      console.warn('[Tracker] Failed to load WebGazer');
-    };
+    s.onerror = function () { console.warn('[Tracker] Failed to load WebGazer'); };
     s.onload = function () {
-      if (!window.webgazer) {
-        console.warn('[Tracker] WebGazer loaded but window.webgazer is undefined');
-        return;
-      }
-      window.webgazer
-        .setGazeListener(function (data) {
-          if (!data) return;
-          push('eye_gaze', data.x, data.y);
-        })
-        .begin();
-      // Hide the video feed overlay WebGazer creates
+      if (!window.webgazer) { console.warn('[Tracker] WebGazer undefined after load'); return; }
+      window.webgazer.setGazeListener(function (data) {
+        if (!data) return;
+        push('eye_gaze', data.x, data.y);
+      }).begin();
       setTimeout(function () {
-        var video = document.getElementById('webgazerVideoFeed');
-        var face = document.getElementById('webgazerFaceOverlay');
-        var canvas = document.getElementById('webgazerGazeDot');
-        if (video) video.style.display = 'none';
-        if (face) face.style.display = 'none';
-        if (canvas) canvas.style.display = 'none';
+        ['webgazerVideoFeed', 'webgazerFaceOverlay', 'webgazerGazeDot'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
       }, 2000);
     };
     document.head.appendChild(s);
@@ -173,94 +205,36 @@
       'font-family:system-ui,sans-serif;font-size:14px;color:#e2e8f0',
       'max-width:520px;width:calc(100% - 40px)',
     ].join(';');
-
     banner.innerHTML = [
       '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">',
       '<circle cx="12" cy="12" r="3" fill="#8B5CF6"/>',
       '<path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="#8B5CF6" stroke-width="1.5"/>',
       '</svg>',
       '<span style="flex:1">This site uses <strong>eye tracking</strong> for UX analytics. Allow webcam access?</span>',
-      '<button id="__tracker_allow" style="',
-        'background:linear-gradient(135deg,#8B5CF6,#06B6D4);',
-        'color:#fff;border:none;border-radius:8px;padding:7px 16px;',
-        'font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap',
-      '">Allow</button>',
-      '<button id="__tracker_decline" style="',
-        'background:rgba(255,255,255,0.06);color:#9ca3af;border:1px solid rgba(255,255,255,0.1);',
-        'border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;white-space:nowrap',
-      '">Decline</button>',
+      '<button id="__tracker_allow" style="background:linear-gradient(135deg,#8B5CF6,#06B6D4);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">Allow</button>',
+      '<button id="__tracker_decline" style="background:rgba(255,255,255,0.06);color:#9ca3af;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;white-space:nowrap">Decline</button>',
     ].join('');
-
     document.body.appendChild(banner);
-
-    document.getElementById('__tracker_allow').addEventListener('click', function () {
-      banner.remove();
-      loadWebGazer();
-    });
-    document.getElementById('__tracker_decline').addEventListener('click', function () {
-      banner.remove();
-    });
+    document.getElementById('__tracker_allow').addEventListener('click', function () { banner.remove(); loadWebGazer(); });
+    document.getElementById('__tracker_decline').addEventListener('click', function () { banner.remove(); });
   }
 
-  // ── Screenshot capture ────────────────────────────────────────────────────
-  function captureScreenshot() {
-    var captured = false;
-    var h2cReady = false;
-    var pageReady = false;
-
-    function doCapture() {
-      if (captured || !h2cReady || !pageReady) return;
-      captured = true;
-      window.html2canvas(document.documentElement, {
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        scale: 0.25,
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
-        height: window.innerHeight,
-        y: window.scrollY,
-      }).then(function (canvas) {
-        canvas.toBlob(function (blob) {
-          if (!blob) return;
-          var fd = new FormData();
-          fd.append('apiKey', API_KEY);
-          fd.append('pageKey', PAGE_KEY);
-          fd.append('image', blob, 'screenshot.jpg');
-          fetch(BASE_URL + '/api/screenshot', { method: 'POST', body: fd })
-            .then(function (r) {
-              if (!r.ok) console.warn('[Tracker] Screenshot upload failed:', r.status);
-            })
-            .catch(function (err) { console.warn('[Tracker] Screenshot upload error:', err); });
-        }, 'image/jpeg', 0.55);
-      }).catch(function (err) { console.warn('[Tracker] html2canvas error:', err); });
+  // ── Visibility / unload ───────────────────────────────────────────────────
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+      flush();
+      doScreenshot(); // screenshotSent flag prevents double-capture
     }
-
-    // Load html2canvas from same origin as tracker (avoids CDN/CSP blocks)
-    var s = document.createElement('script');
-    s.src = BASE_URL + '/html2canvas.min.js';
-    s.onerror = function () { console.warn('[Tracker] Failed to load html2canvas'); };
-    s.onload = function () { h2cReady = true; doCapture(); };
-    document.head.appendChild(s);
-
-    // Trigger once page is fully painted
-    if (document.readyState === 'complete') {
-      pageReady = true;
-      doCapture();
-    } else {
-      window.addEventListener('load', function () { pageReady = true; doCapture(); }, { once: true });
-      // Hard fallback: capture after 8s regardless
-      setTimeout(function () { pageReady = true; doCapture(); }, 8000);
-    }
-  }
+  });
 
   // ── Init ──────────────────────────────────────────────────────────────────
   function init() {
-    initSession();
-    if (EYE_TRACKING) {
-      setTimeout(showConsentBanner, 1500);
-    }
-    captureScreenshot();
+    flush({ init: true }); // create session
+    if (EYE_TRACKING) setTimeout(showConsentBanner, 1500);
+    // Double rAF ensures at least one paint before capturing
+    requestAnimationFrame(function () {
+      requestAnimationFrame(scheduleScreenshot);
+    });
   }
 
   if (document.readyState === 'loading') {
