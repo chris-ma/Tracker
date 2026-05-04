@@ -23,7 +23,7 @@
   var API_KEY = script.getAttribute('data-api-key');
   var PAGE_KEY = script.getAttribute('data-page-key');
   var EYE_TRACKING = script.getAttribute('data-eye-tracking') === 'true';
-  var BASE_URL = script.src.replace('/tracker.js', '');
+  var BASE_URL = new URL(script.src).origin;
 
   if (!API_KEY || !PAGE_KEY) {
     console.warn('[Tracker] Missing data-api-key or data-page-key');
