@@ -13,6 +13,7 @@ const EVENT_TYPES: { type: EventType; label: string; shortLabel: string; color: 
   { type: "mouse_move", label: "Mouse Movement", shortLabel: "Mouse", color: "#06B6D4" },
   { type: "click", label: "Clicks", shortLabel: "Clicks", color: "#8B5CF6" },
   { type: "eye_gaze", label: "Eye Gaze", shortLabel: "Eye", color: "#FBB124" },
+  { type: "scroll", label: "Scroll", shortLabel: "Scroll", color: "#34D399" },
 ];
 
 const DEVICE_OPTIONS: { value: DeviceType | "all"; label: string; shortLabel: string; icon: React.ReactNode }[] = [
@@ -63,7 +64,7 @@ interface Props {
   page: Page;
   screenshotUrl: string | null;
   events: { event_type: EventType; x: number; y: number; created_at: string }[];
-  stats: { total: number; mouse_move: number; click: number; eye_gaze: number };
+  stats: { total: number; mouse_move: number; click: number; eye_gaze: number; scroll: number };
   currentRange: string;
   currentDevice: DeviceType | "all";
   deviceCounts: { mobile: number; tablet: number; desktop: number };
@@ -74,7 +75,7 @@ interface Props {
 export default function HeatmapPageClient({ site, page, screenshotUrl, events, stats, currentRange, currentDevice, deviceCounts, customFrom, customTo }: Props) {
   const router = useRouter();
   const pathname = usePathname();
-  const [activeTypes, setActiveTypes] = useState<EventType[]>(["mouse_move", "click", "eye_gaze"]);
+  const [activeTypes, setActiveTypes] = useState<EventType[]>(["mouse_move", "click", "eye_gaze", "scroll"]);
   const [embedOpen, setEmbedOpen] = useState(false);
 
   const handleRangeChange = useCallback((range: DateRange, from?: string, to?: string) => {
@@ -128,11 +129,12 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         <StatCard label="Total" value={stats.total} color="#a78bfa" />
         <StatCard label="Mouse" value={stats.mouse_move} color="#06B6D4" />
         <StatCard label="Clicks" value={stats.click} color="#8B5CF6" />
         <StatCard label="Eye" value={stats.eye_gaze} color="#FBB124" />
+        <StatCard label="Scroll" value={stats.scroll} color="#34D399" />
       </div>
 
       {/* Controls */}

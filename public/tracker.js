@@ -93,6 +93,20 @@
     push('click', e.clientX, e.clientY);
   });
 
+  // ── Scroll tracking ───────────────────────────────────────────────────────
+  var lastScrollTime = 0;
+  var SCROLL_THROTTLE_MS = 200;
+  document.addEventListener('scroll', function () {
+    var now = Date.now();
+    if (now - lastScrollTime < SCROLL_THROTTLE_MS) return;
+    lastScrollTime = now;
+    var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    if (maxScroll <= 0) return;
+    var scrollFraction = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+    // x=0.5 (centre), y=scroll depth as fraction of total scrollable height
+    eventQueue.push({ type: 'scroll', x: 0.5, y: scrollFraction, ts: now });
+  }, { passive: true });
+
   // ── Batch flush interval ──────────────────────────────────────────────────
   setInterval(flush, 2000);
 

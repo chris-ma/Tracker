@@ -123,6 +123,7 @@ export default async function HeatmapPage({
     mouse_move: events.filter((e) => e.event_type === "mouse_move").length,
     click: events.filter((e) => e.event_type === "click").length,
     eye_gaze: events.filter((e) => e.event_type === "eye_gaze").length,
+    scroll: events.filter((e) => e.event_type === "scroll").length,
   };
 
   return (

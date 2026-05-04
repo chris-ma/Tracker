@@ -25,6 +25,11 @@ const TYPE_CONFIG: Record<EventType, { gradient: Record<string, string>; radius:
     radius: 25,
     maxOpacity: 0.75,
   },
+  scroll: {
+    gradient: { "0.0": "rgba(52,211,153,0)", "0.5": "rgba(52,211,153,0.45)", "1.0": "rgba(52,211,153,1)" },
+    radius: 40,
+    maxOpacity: 0.6,
+  },
 };
 
 export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
@@ -56,6 +61,7 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
       mouse_move: [],
       click: [],
       eye_gaze: [],
+      scroll: [],
     };
 
     filtered.forEach((e) => {

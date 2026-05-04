@@ -26,7 +26,7 @@ export type Session = {
   created_at: string;
 };
 
-export type EventType = "mouse_move" | "click" | "eye_gaze";
+export type EventType = "mouse_move" | "click" | "eye_gaze" | "scroll";
 
 export type TrackerEvent = {
   id: string;
