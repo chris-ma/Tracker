@@ -38,6 +38,8 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
   const imgRef = useRef<HTMLImageElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
 
+  const hasEvents = events.filter((e) => activeTypes.includes(e.event_type)).length > 0;
+
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
 
@@ -52,11 +54,9 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
     if (!ctx) return;
     ctx.clearRect(0, 0, W, H);
 
-    // Filter events to active types
     const filtered = events.filter((e) => activeTypes.includes(e.event_type));
     if (!filtered.length) return;
 
-    // Group by type and draw layered heatmap
     const byType: Record<EventType, HeatmapPoint[]> = {
       mouse_move: [],
       click: [],
@@ -80,7 +80,11 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
     <div
       ref={containerRef}
       className="relative w-full overflow-hidden rounded-xl"
-      style={{ minHeight: 400, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}
+      style={{
+        minHeight: 500,
+        background: screenshotUrl ? "rgba(0,0,0,0.3)" : "#ffffff",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
     >
       {screenshotUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -93,7 +97,20 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
           style={{ display: "block" }}
         />
       ) : (
-        <div className="flex flex-col items-center justify-center h-64 gap-3">
+        // White placeholder — heatmap still renders on top via the canvas
+        <div style={{ height: 600 }} />
+      )}
+
+      {/* Heatmap canvas — renders over screenshot or white background */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        style={{ mixBlendMode: screenshotUrl ? "screen" : "normal" }}
+      />
+
+      {/* No screenshot badge — only shown when there are no events either, so it doesn't overlap the heatmap */}
+      {!screenshotUrl && !hasEvents && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
           <div
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
             style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", color: "#FBB124" }}
@@ -104,16 +121,25 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
             No screenshot captured yet
           </div>
           <p className="text-white/30 text-xs text-center max-w-xs px-4">
-            Visit the tracked page in a browser and stay for 3–5 seconds. Check the browser console for <code className="text-white/50">[Tracker]</code> logs if it still does not appear.
+            Visit the tracked page and stay for 3–5 seconds. Check the browser console for <code className="text-white/50">[Tracker]</code> logs if it still does not appear.
           </p>
         </div>
       )}
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        style={{ mixBlendMode: "screen" }}
-      />
-      {!events.length && (
+
+      {/* Small corner badge when screenshot is missing but data exists */}
+      {!screenshotUrl && hasEvents && (
+        <div
+          className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium"
+          style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.35)", color: "#FBB124" }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+          </svg>
+          No screenshot
+        </div>
+      )}
+
+      {!hasEvents && screenshotUrl && (
         <div className="absolute inset-0 flex items-center justify-center">
           <p className="text-white/30 text-sm glass px-4 py-2 rounded-xl">No tracking data for this period</p>
         </div>
