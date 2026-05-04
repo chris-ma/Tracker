@@ -214,6 +214,7 @@
       window.html2canvas(document.documentElement, {
         logging: false,
         useCORS: true,
+        allowTaint: true,
         scale: 0.25,
         windowWidth: window.innerWidth,
         windowHeight: window.innerHeight,
@@ -235,9 +236,9 @@
       }).catch(function (err) { console.warn('[Tracker] html2canvas error:', err); });
     }
 
-    // Load html2canvas
+    // Load html2canvas from same origin as tracker (avoids CDN/CSP blocks)
     var s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    s.src = BASE_URL + '/html2canvas.min.js';
     s.onerror = function () { console.warn('[Tracker] Failed to load html2canvas'); };
     s.onload = function () { h2cReady = true; doCapture(); };
     document.head.appendChild(s);
