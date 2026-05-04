@@ -11,7 +11,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="flex min-h-screen" style={{ background: "#080810" }}>
       <div className="aurora-bg" />
       <AdminSidebar email={user.email ?? ""} />
-      <main className="flex-1 ml-64 relative z-10">
+      {/* pt-14 on mobile to clear the fixed top bar; md:ml-64 for desktop sidebar */}
+      <main className="flex-1 md:ml-64 pt-14 md:pt-0 relative z-10 min-w-0">
         {children}
       </main>
     </div>
