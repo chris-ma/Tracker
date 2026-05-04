@@ -75,7 +75,9 @@
             sessionId = data.sessionId;
           }
         })
-        .catch(function () {});
+        .catch(function (err) {
+          console.warn('[Tracker] Event flush error:', err);
+        });
     }
   }
 
@@ -169,15 +171,20 @@
   function captureScreenshot() {
     var s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    s.onerror = function () {
+      console.warn('[Tracker] Failed to load html2canvas');
+    };
     s.onload = function () {
       window.html2canvas(document.documentElement, {
         logging: false,
         useCORS: true,
-        scale: 0.5,
-        windowWidth: document.documentElement.scrollWidth,
-        windowHeight: document.documentElement.scrollHeight,
+        scale: 0.3,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        height: window.innerHeight,
+        y: window.scrollY,
       }).then(function (canvas) {
-        var imageBase64 = canvas.toDataURL('image/png');
+        var imageBase64 = canvas.toDataURL('image/jpeg', 0.6);
         fetch(BASE_URL + '/api/screenshot', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -186,7 +193,13 @@
             pageKey: PAGE_KEY,
             imageBase64: imageBase64,
           }),
-        }).catch(function () {});
+        }).then(function (r) {
+          if (!r.ok) console.warn('[Tracker] Screenshot upload failed:', r.status);
+        }).catch(function (err) {
+          console.warn('[Tracker] Screenshot upload error:', err);
+        });
+      }).catch(function (err) {
+        console.warn('[Tracker] html2canvas error:', err);
       });
     };
     document.head.appendChild(s);
