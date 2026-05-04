@@ -93,8 +93,19 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
           style={{ display: "block" }}
         />
       ) : (
-        <div className="flex items-center justify-center h-64 text-white/30 text-sm">
-          No screenshot captured yet — embed the tracking script on your page to auto-capture one.
+        <div className="flex flex-col items-center justify-center h-64 gap-3">
+          <div
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", color: "#FBB124" }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
+              <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+            </svg>
+            No screenshot captured yet
+          </div>
+          <p className="text-white/30 text-xs text-center max-w-xs px-4">
+            Visit the tracked page in a browser and stay for 3–5 seconds. Check the browser console for <code className="text-white/50">[Tracker]</code> logs if it still does not appear.
+          </p>
         </div>
       )}
       <canvas

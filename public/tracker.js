@@ -36,11 +36,18 @@
   var h2cLoaded = false;
   var screenshotSent = false;
   (function () {
+    var src = BASE_URL + '/html2canvas.min.js';
+    console.log('[Tracker] Loading html2canvas from', src);
     var s = document.createElement('script');
-    s.src = BASE_URL + '/html2canvas.min.js';
+    s.src = src;
     s.async = true;
-    s.onload = function () { h2cLoaded = true; };
-    s.onerror = function () { console.warn('[Tracker] html2canvas load failed'); };
+    s.onload = function () {
+      h2cLoaded = true;
+      console.log('[Tracker] html2canvas ready');
+    };
+    s.onerror = function () {
+      console.error('[Tracker] FAILED to load html2canvas from', src, '— screenshot will not be captured');
+    };
     (document.head || document.documentElement).appendChild(s);
   })();
 
@@ -128,8 +135,10 @@
 
   // ── Screenshot capture ────────────────────────────────────────────────────
   function doScreenshot() {
-    if (screenshotSent || !h2cLoaded) return;
+    if (screenshotSent) { console.log('[Tracker] Screenshot already sent, skipping'); return; }
+    if (!h2cLoaded) { console.warn('[Tracker] doScreenshot called but html2canvas not ready yet'); return; }
     screenshotSent = true;
+    console.log('[Tracker] Starting html2canvas capture…');
     window.html2canvas(document.documentElement, {
       logging: false,
       useCORS: true,
@@ -140,34 +149,49 @@
       height: window.innerHeight,
       y: window.scrollY,
     }).then(function (canvas) {
+      console.log('[Tracker] Capture complete, encoding blob…');
       canvas.toBlob(function (blob) {
-        if (!blob) return;
+        if (!blob) {
+          console.error('[Tracker] canvas.toBlob returned null — canvas may be tainted');
+          screenshotSent = false;
+          return;
+        }
+        console.log('[Tracker] Blob size:', blob.size, 'bytes — uploading…');
         var fd = new FormData();
         fd.append('apiKey', API_KEY);
         fd.append('pageKey', PAGE_KEY);
         fd.append('image', blob, 'screenshot.jpg');
         // sendBeacon persists even when the page is backgrounded or unloading
         if (navigator.sendBeacon) {
-          navigator.sendBeacon(BASE_URL + '/api/screenshot', fd);
+          var ok = navigator.sendBeacon(BASE_URL + '/api/screenshot', fd);
+          console.log('[Tracker] sendBeacon queued:', ok);
         } else {
           fetch(BASE_URL + '/api/screenshot', { method: 'POST', body: fd, keepalive: true })
-            .catch(function (err) { console.warn('[Tracker] Screenshot upload error:', err); });
+            .then(function (r) {
+              if (r.ok) console.log('[Tracker] Screenshot uploaded OK');
+              else console.error('[Tracker] Screenshot upload failed — HTTP', r.status);
+            })
+            .catch(function (err) { console.error('[Tracker] Screenshot upload error:', err); });
         }
       }, 'image/jpeg', 0.6);
     }).catch(function (err) {
       screenshotSent = false; // allow retry
-      console.warn('[Tracker] html2canvas error:', err);
+      console.error('[Tracker] html2canvas capture error:', err);
     });
   }
 
   // Poll until h2c is ready then shoot; gives up after 15s
   function scheduleScreenshot() {
+    console.log('[Tracker] Scheduling screenshot (h2cLoaded=' + h2cLoaded + ')');
     if (h2cLoaded) { doScreenshot(); return; }
     var waited = 0;
     var iv = setInterval(function () {
       waited += 300;
       if (h2cLoaded) { clearInterval(iv); doScreenshot(); return; }
-      if (waited >= 15000) clearInterval(iv);
+      if (waited >= 15000) {
+        clearInterval(iv);
+        console.error('[Tracker] Screenshot FAILED — html2canvas did not load within 15s');
+      }
     }, 300);
   }
 
