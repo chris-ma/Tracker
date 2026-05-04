@@ -103,9 +103,15 @@
   // ── Eye tracking ──────────────────────────────────────────────────────────
   function loadWebGazer() {
     var s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/webgazer@2.1.0/src/index.mjs';
-    s.type = 'module';
+    s.src = 'https://cdn.jsdelivr.net/npm/webgazer@2.1.0/dist/webgazer.js';
+    s.onerror = function () {
+      console.warn('[Tracker] Failed to load WebGazer');
+    };
     s.onload = function () {
+      if (!window.webgazer) {
+        console.warn('[Tracker] WebGazer loaded but window.webgazer is undefined');
+        return;
+      }
       window.webgazer
         .setGazeListener(function (data) {
           if (!data) return;
