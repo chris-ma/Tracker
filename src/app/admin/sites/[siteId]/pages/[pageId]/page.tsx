@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createSupabaseServiceRole } from "@/lib/supabase-server";
 import HeatmapPageClient from "./HeatmapPageClient";
-import type { Site, Page, TrackerEvent } from "@/lib/types";
+import type { Site, Page, TrackerEvent, DeviceType } from "@/lib/types";
 
 async function getPageData(siteId: string, pageId: string) {
   const db = createSupabaseServiceRole();
@@ -18,20 +18,55 @@ async function getPageData(siteId: string, pageId: string) {
     ? db.storage.from("screenshots").getPublicUrl(screenshot.storage_path).data.publicUrl
     : null;
 
-  return {
-    site: site as Site,
-    page: page as Page,
-    screenshotUrl,
-  };
+  return { site: site as Site, page: page as Page, screenshotUrl };
 }
 
-async function getEvents(pageId: string, from?: string, to?: string) {
+async function getEvents(
+  pageId: string,
+  device: DeviceType | "all",
+  from?: string,
+  to?: string
+) {
   const db = createSupabaseServiceRole();
-  let query = db.from("events").select("event_type, x, y, created_at").eq("page_id", pageId);
-  if (from) query = query.gte("created_at", from);
-  if (to) query = query.lte("created_at", to);
-  const { data } = await query.limit(50000);
+
+  if (device === "all") {
+    let q = db
+      .from("events")
+      .select("event_type, x, y, created_at")
+      .eq("page_id", pageId);
+    if (from) q = q.gte("created_at", from);
+    if (to) q = q.lte("created_at", to);
+    const { data } = await q.limit(50000);
+    return (data ?? []) as Pick<TrackerEvent, "event_type" | "x" | "y" | "created_at">[];
+  }
+
+  // Filter by device via the sessions join using !inner
+  let q = db
+    .from("events")
+    .select("event_type, x, y, created_at, sessions!inner(device_type)")
+    .eq("page_id", pageId)
+    .eq("sessions.device_type", device);
+  if (from) q = q.gte("created_at", from);
+  if (to) q = q.lte("created_at", to);
+  const { data } = await q.limit(50000);
   return (data ?? []) as Pick<TrackerEvent, "event_type" | "x" | "y" | "created_at">[];
+}
+
+async function getDeviceCounts(pageId: string, from?: string, to?: string) {
+  const db = createSupabaseServiceRole();
+  let q = db
+    .from("sessions")
+    .select("device_type")
+    .eq("page_id", pageId);
+  if (from) q = q.gte("created_at", from);
+  if (to) q = q.lte("created_at", to);
+  const { data } = await q;
+  const counts = { mobile: 0, tablet: 0, desktop: 0 };
+  (data ?? []).forEach((s: { device_type: string | null }) => {
+    const d = s.device_type as DeviceType | null;
+    if (d && d in counts) counts[d]++;
+  });
+  return counts;
 }
 
 export default async function HeatmapPage({
@@ -39,18 +74,19 @@ export default async function HeatmapPage({
   searchParams,
 }: {
   params: Promise<{ siteId: string; pageId: string }>;
-  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ range?: string; from?: string; to?: string; device?: string }>;
 }) {
   const { siteId, pageId } = await params;
   const sp = await searchParams;
   const range = sp.range ?? "7d";
   const customFrom = sp.from;
   const customTo = sp.to;
+  const device = (sp.device ?? "all") as DeviceType | "all";
 
   const pageData = await getPageData(siteId, pageId);
   if (!pageData) notFound();
 
-  // Compute date filter
+  // Compute date range
   let fromDate: string | undefined;
   let toDate: string | undefined;
   const now = new Date();
@@ -77,7 +113,10 @@ export default async function HeatmapPage({
     toDate = new Date(customTo + "T23:59:59").toISOString();
   }
 
-  const events = await getEvents(pageId, fromDate, toDate);
+  const [events, deviceCounts] = await Promise.all([
+    getEvents(pageId, device, fromDate, toDate),
+    getDeviceCounts(pageId, fromDate, toDate),
+  ]);
 
   const stats = {
     total: events.length,
@@ -94,6 +133,8 @@ export default async function HeatmapPage({
       events={events}
       stats={stats}
       currentRange={range}
+      currentDevice={device}
+      deviceCounts={deviceCounts}
       customFrom={customFrom}
       customTo={customTo}
     />

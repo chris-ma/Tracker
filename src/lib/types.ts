@@ -46,6 +46,8 @@ export type Screenshot = {
   captured_at: string;
 };
 
+export type DeviceType = "mobile" | "tablet" | "desktop";
+
 export type DateRange =
   | "today"
   | "7d"

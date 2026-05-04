@@ -1,18 +1,61 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { HeatmapCanvas } from "@/components/HeatmapCanvas";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { EmbedCodeModal } from "@/components/EmbedCodeModal";
-import type { Site, Page, EventType, DateRange } from "@/lib/types";
+import type { Site, Page, EventType, DateRange, DeviceType } from "@/lib/types";
 
 const EVENT_TYPES: { type: EventType; label: string; shortLabel: string; color: string }[] = [
   { type: "mouse_move", label: "Mouse Movement", shortLabel: "Mouse", color: "#06B6D4" },
   { type: "click", label: "Clicks", shortLabel: "Clicks", color: "#8B5CF6" },
   { type: "eye_gaze", label: "Eye Gaze", shortLabel: "Eye", color: "#FBB124" },
+];
+
+const DEVICE_OPTIONS: { value: DeviceType | "all"; label: string; shortLabel: string; icon: React.ReactNode }[] = [
+  {
+    value: "all",
+    label: "All Devices",
+    shortLabel: "All",
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" />
+      </svg>
+    ),
+  },
+  {
+    value: "desktop",
+    label: "Desktop",
+    shortLabel: "Desktop",
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" />
+      </svg>
+    ),
+  },
+  {
+    value: "tablet",
+    label: "Tablet",
+    shortLabel: "Tablet",
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="4" y="2" width="16" height="20" rx="2" /><circle cx="12" cy="18" r="1" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
+    value: "mobile",
+    label: "Mobile",
+    shortLabel: "Mobile",
+    icon: (
+      <svg width="11" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="5" y="2" width="14" height="20" rx="2" /><circle cx="12" cy="18" r="1" fill="currentColor" />
+      </svg>
+    ),
+  },
 ];
 
 interface Props {
@@ -22,11 +65,13 @@ interface Props {
   events: { event_type: EventType; x: number; y: number; created_at: string }[];
   stats: { total: number; mouse_move: number; click: number; eye_gaze: number };
   currentRange: string;
+  currentDevice: DeviceType | "all";
+  deviceCounts: { mobile: number; tablet: number; desktop: number };
   customFrom?: string;
   customTo?: string;
 }
 
-export default function HeatmapPageClient({ site, page, screenshotUrl, events, stats, currentRange, customFrom, customTo }: Props) {
+export default function HeatmapPageClient({ site, page, screenshotUrl, events, stats, currentRange, currentDevice, deviceCounts, customFrom, customTo }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [activeTypes, setActiveTypes] = useState<EventType[]>(["mouse_move", "click", "eye_gaze"]);
@@ -36,8 +81,17 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
     const params = new URLSearchParams({ range });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
+    if (currentDevice !== "all") params.set("device", currentDevice);
     router.push(`${pathname}?${params.toString()}`);
-  }, [router, pathname]);
+  }, [router, pathname, currentDevice]);
+
+  const handleDeviceChange = useCallback((device: DeviceType | "all") => {
+    const params = new URLSearchParams({ range: currentRange });
+    if (customFrom) params.set("from", customFrom);
+    if (customTo) params.set("to", customTo);
+    if (device !== "all") params.set("device", device);
+    router.push(`${pathname}?${params.toString()}`);
+  }, [router, pathname, currentRange, customFrom, customTo]);
 
   function toggleType(type: EventType) {
     setActiveTypes((prev) =>
@@ -89,6 +143,49 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
           customFrom={customFrom}
           customTo={customTo}
         />
+
+        {/* Device selector */}
+        <div className="overflow-x-auto -mx-1 px-1 pb-0.5">
+          <div className="flex items-center gap-1 p-1 rounded-xl glass w-fit">
+            {DEVICE_OPTIONS.map(({ value, label, shortLabel, icon }) => {
+              const active = currentDevice === value;
+              const count = value === "all"
+                ? deviceCounts.mobile + deviceCounts.tablet + deviceCounts.desktop
+                : deviceCounts[value as DeviceType];
+              return (
+                <button
+                  key={value}
+                  onClick={() => handleDeviceChange(value)}
+                  className="relative flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
+                  style={{ color: active ? "white" : "rgba(255,255,255,0.45)" }}
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="device-pill"
+                      className="absolute inset-0 rounded-lg"
+                      style={{ background: "linear-gradient(135deg, #8B5CF6, #06B6D4)" }}
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    {icon}
+                    <span className="sm:hidden">{shortLabel}</span>
+                    <span className="hidden sm:inline">{label}</span>
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded-full font-mono leading-none"
+                      style={{
+                        background: active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)",
+                        color: active ? "white" : "rgba(255,255,255,0.4)",
+                      }}
+                    >
+                      {count.toLocaleString()}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Layer toggles — scrollable on mobile */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
