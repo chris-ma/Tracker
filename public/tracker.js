@@ -10,7 +10,11 @@
 (function () {
   'use strict';
 
+  // document.currentScript is null for async scripts (per spec), so fall back
+  // to a targeted query. Never use last-script-in-DOM — other scripts (e.g.
+  // Vercel's injected feedback widget) may appear after ours in the DOM.
   var script = document.currentScript ||
+    document.querySelector('script[data-api-key]') ||
     (function () {
       var scripts = document.getElementsByTagName('script');
       return scripts[scripts.length - 1];
