@@ -204,40 +204,53 @@
 
   // ── Screenshot capture ────────────────────────────────────────────────────
   function captureScreenshot() {
-    var s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-    s.onerror = function () {
-      console.warn('[Tracker] Failed to load html2canvas');
-    };
-    s.onload = function () {
+    var captured = false;
+    var h2cReady = false;
+    var pageReady = false;
+
+    function doCapture() {
+      if (captured || !h2cReady || !pageReady) return;
+      captured = true;
       window.html2canvas(document.documentElement, {
         logging: false,
         useCORS: true,
-        scale: 0.3,
+        scale: 0.25,
         windowWidth: window.innerWidth,
         windowHeight: window.innerHeight,
         height: window.innerHeight,
         y: window.scrollY,
       }).then(function (canvas) {
-        var imageBase64 = canvas.toDataURL('image/jpeg', 0.6);
-        fetch(BASE_URL + '/api/screenshot', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            apiKey: API_KEY,
-            pageKey: PAGE_KEY,
-            imageBase64: imageBase64,
-          }),
-        }).then(function (r) {
-          if (!r.ok) console.warn('[Tracker] Screenshot upload failed:', r.status);
-        }).catch(function (err) {
-          console.warn('[Tracker] Screenshot upload error:', err);
-        });
-      }).catch(function (err) {
-        console.warn('[Tracker] html2canvas error:', err);
-      });
-    };
+        canvas.toBlob(function (blob) {
+          if (!blob) return;
+          var fd = new FormData();
+          fd.append('apiKey', API_KEY);
+          fd.append('pageKey', PAGE_KEY);
+          fd.append('image', blob, 'screenshot.jpg');
+          fetch(BASE_URL + '/api/screenshot', { method: 'POST', body: fd })
+            .then(function (r) {
+              if (!r.ok) console.warn('[Tracker] Screenshot upload failed:', r.status);
+            })
+            .catch(function (err) { console.warn('[Tracker] Screenshot upload error:', err); });
+        }, 'image/jpeg', 0.55);
+      }).catch(function (err) { console.warn('[Tracker] html2canvas error:', err); });
+    }
+
+    // Load html2canvas
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    s.onerror = function () { console.warn('[Tracker] Failed to load html2canvas'); };
+    s.onload = function () { h2cReady = true; doCapture(); };
     document.head.appendChild(s);
+
+    // Trigger once page is fully painted
+    if (document.readyState === 'complete') {
+      pageReady = true;
+      doCapture();
+    } else {
+      window.addEventListener('load', function () { pageReady = true; doCapture(); }, { once: true });
+      // Hard fallback: capture after 8s regardless
+      setTimeout(function () { pageReady = true; doCapture(); }, 8000);
+    }
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
@@ -246,9 +259,7 @@
     if (EYE_TRACKING) {
       setTimeout(showConsentBanner, 1500);
     }
-    // Give mobile connections more time; skip if already captured this session
-    var screenshotDelay = /Mobi|Android/i.test(navigator.userAgent) ? 6000 : 3000;
-    setTimeout(captureScreenshot, screenshotDelay);
+    captureScreenshot();
   }
 
   if (document.readyState === 'loading') {

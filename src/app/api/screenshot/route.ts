@@ -16,10 +16,29 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { apiKey, pageKey, imageBase64 } = body;
+    let apiKey: string | null = null;
+    let pageKey: string | null = null;
+    let imageBuffer: Buffer | null = null;
 
-    if (!apiKey || !pageKey || !imageBase64) {
+    const contentType = req.headers.get("content-type") ?? "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      apiKey = formData.get("apiKey") as string | null;
+      pageKey = formData.get("pageKey") as string | null;
+      const file = formData.get("image") as File | null;
+      if (file) imageBuffer = Buffer.from(await file.arrayBuffer());
+    } else {
+      const body = await req.json();
+      apiKey = body.apiKey;
+      pageKey = body.pageKey;
+      if (body.imageBase64) {
+        const base64Data = (body.imageBase64 as string).replace(/^data:image\/\w+;base64,/, "");
+        imageBuffer = Buffer.from(base64Data, "base64");
+      }
+    }
+
+    if (!apiKey || !pageKey || !imageBuffer) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400, headers: CORS });
     }
 
@@ -46,17 +65,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid page_key" }, { status: 401, headers: CORS });
     }
 
-    // Strip data URL prefix
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-    const buffer = Buffer.from(base64Data, "base64");
-
     const urlHash = createHash("md5").update(page.page_url).digest("hex");
-    const storagePath = `${site.id}/${urlHash}.png`;
+    const storagePath = `${site.id}/${urlHash}.jpg`;
 
     const { error: uploadError } = await db.storage
       .from("screenshots")
-      .upload(storagePath, buffer, {
-        contentType: "image/png",
+      .upload(storagePath, imageBuffer, {
+        contentType: "image/jpeg",
         upsert: true,
       });
 
@@ -72,7 +87,8 @@ export async function POST(req: NextRequest) {
       );
 
     return NextResponse.json({ ok: true }, { headers: CORS });
-  } catch {
+  } catch (err) {
+    console.error("[screenshot]", err);
     return NextResponse.json({ error: "Server error" }, { status: 500, headers: CORS });
   }
 }
