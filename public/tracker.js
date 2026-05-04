@@ -79,22 +79,19 @@
       if (!payload.events.length && !payload.endedAt) return;
     }
 
-    var body = JSON.stringify(payload);
-    if (navigator.sendBeacon && !opts) {
-      navigator.sendBeacon(BASE_URL + '/api/track', new Blob([body], { type: 'application/json' }));
-    } else {
-      fetch(BASE_URL + '/api/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: body,
-        keepalive: true,
+    // Always use fetch+keepalive — sendBeacon with application/json fails silently
+    // on iOS Safari because it can't send a CORS preflight for non-simple requests.
+    fetch(BASE_URL + '/api/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!sessionId && data.sessionId) sessionId = data.sessionId;
       })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (!sessionId && data.sessionId) sessionId = data.sessionId;
-        })
-        .catch(function (err) { console.warn('[Tracker] Event flush error:', err); });
-    }
+      .catch(function (err) { console.warn('[Tracker] Event flush error:', err); });
   }
 
   // ── Mouse & touch tracking ────────────────────────────────────────────────
@@ -262,17 +259,13 @@
         fd.append('apiKey', API_KEY);
         fd.append('pageKey', PAGE_KEY);
         fd.append('image', blob, 'screenshot.jpg');
-        if (navigator.sendBeacon) {
-          var ok = navigator.sendBeacon(BASE_URL + '/api/screenshot', fd);
-          console.log('[Tracker] sendBeacon queued:', ok);
-        } else {
-          fetch(BASE_URL + '/api/screenshot', { method: 'POST', body: fd, keepalive: true })
-            .then(function (r) {
-              if (r.ok) console.log('[Tracker] Screenshot uploaded OK');
-              else console.error('[Tracker] Screenshot upload failed — HTTP', r.status);
-            })
-            .catch(function (err) { console.error('[Tracker] Screenshot upload error:', err); });
-        }
+        // Use fetch+keepalive — sendBeacon is unreliable for multipart on iOS Safari
+        fetch(BASE_URL + '/api/screenshot', { method: 'POST', body: fd, keepalive: true })
+          .then(function (r) {
+            if (r.ok) console.log('[Tracker] Screenshot uploaded OK');
+            else console.error('[Tracker] Screenshot upload failed — HTTP', r.status);
+          })
+          .catch(function (err) { console.error('[Tracker] Screenshot upload error:', err); });
       }, 'image/jpeg', 0.6);
     }).catch(function (err) {
       screenshotSent = false;
