@@ -14,7 +14,7 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { apiKey, pageKey, sessionId, pageUrl, viewportWidth, viewportHeight, events } = body;
+    const { apiKey, pageKey, sessionId, pageUrl, viewportWidth, viewportHeight, events, endedAt } = body;
 
     if (!apiKey || !pageKey) {
       return NextResponse.json({ error: "Missing keys" }, { status: 400, headers: CORS });
@@ -74,6 +74,15 @@ export async function POST(req: NextRequest) {
         y: Math.max(0, Math.min(1, e.y)),
       }));
       await db.from("events").insert(rows);
+    }
+
+    // Mark session as ended if the page is being hidden
+    if (endedAt && resolvedSessionId) {
+      await db
+        .from("sessions")
+        .update({ ended_at: endedAt })
+        .eq("id", resolvedSessionId)
+        .is("ended_at", null); // don't overwrite if already set
     }
 
     return NextResponse.json(

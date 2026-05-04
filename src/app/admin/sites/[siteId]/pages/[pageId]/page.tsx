@@ -124,6 +124,9 @@ export default async function HeatmapPage({
     click: events.filter((e) => e.event_type === "click").length,
     eye_gaze: events.filter((e) => e.event_type === "eye_gaze").length,
     scroll: events.filter((e) => e.event_type === "scroll").length,
+    long_press: events.filter((e) => e.event_type === "long_press").length,
+    pinch: events.filter((e) => e.event_type === "pinch").length,
+    double_tap: events.filter((e) => e.event_type === "double_tap").length,
   };
 
   return (

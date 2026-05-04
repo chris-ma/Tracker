@@ -30,9 +30,9 @@
   var eventQueue = [];
   var lastMouseTime = 0;
   var THROTTLE_MS = 50;
+  var sessionStart = Date.now();
 
   // ── Load html2canvas immediately (before DOMContentLoaded) ────────────────
-  // Starting early maximises the chance it's ready before the user navigates away.
   var h2cLoaded = false;
   var screenshotSent = false;
   (function () {
@@ -68,10 +68,15 @@
       viewportHeight: window.innerHeight,
       events: eventQueue.slice(),
     };
+
+    if (opts && opts.ended) {
+      payload.endedAt = new Date().toISOString();
+    }
+
     eventQueue = [];
 
     if (!opts || !opts.init) {
-      if (!payload.events.length) return;
+      if (!payload.events.length && !payload.endedAt) return;
     }
 
     var body = JSON.stringify(payload);
@@ -118,6 +123,102 @@
     if (t) push('click', t.clientX, t.clientY);
   }, { passive: true });
 
+  // ── Long press detection ──────────────────────────────────────────────────
+  var longPressTimer = null;
+  var longPressX = 0;
+  var longPressY = 0;
+  var longPressMoved = false;
+  var LONG_PRESS_MS = 500;
+  var LONG_PRESS_MOVE_THRESHOLD = 10;
+
+  document.addEventListener('touchstart', function (e) {
+    var t = e.touches[0];
+    if (!t) return;
+    longPressX = t.clientX;
+    longPressY = t.clientY;
+    longPressMoved = false;
+    longPressTimer = setTimeout(function () {
+      if (!longPressMoved) {
+        push('long_press', longPressX, longPressY);
+      }
+    }, LONG_PRESS_MS);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function (e) {
+    var t = e.touches[0];
+    if (!t) return;
+    var dx = t.clientX - longPressX;
+    var dy = t.clientY - longPressY;
+    if (Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_MOVE_THRESHOLD) {
+      longPressMoved = true;
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', function () {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  }, { passive: true });
+
+  // ── Double tap detection ──────────────────────────────────────────────────
+  var lastTapTime = 0;
+  var lastTapX = 0;
+  var lastTapY = 0;
+  var DOUBLE_TAP_MS = 300;
+  var DOUBLE_TAP_RADIUS = 30;
+
+  document.addEventListener('touchend', function (e) {
+    var t = e.changedTouches[0];
+    if (!t) return;
+    var now = Date.now();
+    var dx = t.clientX - lastTapX;
+    var dy = t.clientY - lastTapY;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (now - lastTapTime < DOUBLE_TAP_MS && dist < DOUBLE_TAP_RADIUS) {
+      push('double_tap', t.clientX, t.clientY);
+      lastTapTime = 0; // reset so triple-tap doesn't trigger twice
+    } else {
+      lastTapTime = now;
+      lastTapX = t.clientX;
+      lastTapY = t.clientY;
+    }
+  }, { passive: true });
+
+  // ── Pinch detection ───────────────────────────────────────────────────────
+  var pinchStartDist = 0;
+  var PINCH_MIN_DELTA = 20;
+
+  document.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 2) {
+      var t0 = e.touches[0];
+      var t1 = e.touches[1];
+      var dx = t1.clientX - t0.clientX;
+      var dy = t1.clientY - t0.clientY;
+      pinchStartDist = Math.sqrt(dx * dx + dy * dy);
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', function (e) {
+    if (pinchStartDist > 0 && e.changedTouches.length >= 1) {
+      // record pinch center from the last known two-finger position
+      var allTouches = e.touches.length > 0 ? e.touches : e.changedTouches;
+      if (allTouches.length >= 2) {
+        var cx = (allTouches[0].clientX + allTouches[1].clientX) / 2;
+        var cy = (allTouches[0].clientY + allTouches[1].clientY) / 2;
+        push('pinch', cx, cy);
+      } else if (e.changedTouches.length >= 2) {
+        var ct0 = e.changedTouches[0];
+        var ct1 = e.changedTouches[1];
+        var dx2 = ct1.clientX - ct0.clientX;
+        var dy2 = ct1.clientY - ct0.clientY;
+        var endDist = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+        if (Math.abs(endDist - pinchStartDist) > PINCH_MIN_DELTA) {
+          push('pinch', (ct0.clientX + ct1.clientX) / 2, (ct0.clientY + ct1.clientY) / 2);
+        }
+      }
+      pinchStartDist = 0;
+    }
+  }, { passive: true });
+
   // ── Scroll tracking ───────────────────────────────────────────────────────
   var lastScrollTime = 0;
   document.addEventListener('scroll', function () {
@@ -161,7 +262,6 @@
         fd.append('apiKey', API_KEY);
         fd.append('pageKey', PAGE_KEY);
         fd.append('image', blob, 'screenshot.jpg');
-        // sendBeacon persists even when the page is backgrounded or unloading
         if (navigator.sendBeacon) {
           var ok = navigator.sendBeacon(BASE_URL + '/api/screenshot', fd);
           console.log('[Tracker] sendBeacon queued:', ok);
@@ -175,12 +275,11 @@
         }
       }, 'image/jpeg', 0.6);
     }).catch(function (err) {
-      screenshotSent = false; // allow retry
+      screenshotSent = false;
       console.error('[Tracker] html2canvas capture error:', err);
     });
   }
 
-  // Poll until h2c is ready then shoot; gives up after 15s
   function scheduleScreenshot() {
     console.log('[Tracker] Scheduling screenshot (h2cLoaded=' + h2cLoaded + ')');
     if (h2cLoaded) { doScreenshot(); return; }
@@ -246,7 +345,7 @@
   // ── Visibility / unload ───────────────────────────────────────────────────
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'hidden') {
-      flush();
+      flush({ ended: true }); // send remaining events + mark session ended
       doScreenshot(); // screenshotSent flag prevents double-capture
     }
   });
@@ -255,7 +354,6 @@
   function init() {
     flush({ init: true }); // create session
     if (EYE_TRACKING) setTimeout(showConsentBanner, 1500);
-    // Double rAF ensures at least one paint before capturing
     requestAnimationFrame(function () {
       requestAnimationFrame(scheduleScreenshot);
     });

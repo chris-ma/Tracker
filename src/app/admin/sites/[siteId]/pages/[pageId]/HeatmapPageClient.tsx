@@ -14,6 +14,9 @@ const EVENT_TYPES: { type: EventType; label: string; shortLabel: string; color: 
   { type: "click", label: "Clicks", shortLabel: "Clicks", color: "#8B5CF6" },
   { type: "eye_gaze", label: "Eye Gaze", shortLabel: "Eye", color: "#FBB124" },
   { type: "scroll", label: "Scroll", shortLabel: "Scroll", color: "#34D399" },
+  { type: "long_press", label: "Long Press", shortLabel: "Hold", color: "#FB7185" },
+  { type: "pinch", label: "Pinch Zoom", shortLabel: "Pinch", color: "#F9A8D4" },
+  { type: "double_tap", label: "Double Tap", shortLabel: "D.Tap", color: "#FDB974" },
 ];
 
 const DEVICE_OPTIONS: { value: DeviceType | "all"; label: string; shortLabel: string; icon: React.ReactNode }[] = [
@@ -64,7 +67,7 @@ interface Props {
   page: Page;
   screenshotUrl: string | null;
   events: { event_type: EventType; x: number; y: number; created_at: string }[];
-  stats: { total: number; mouse_move: number; click: number; eye_gaze: number; scroll: number };
+  stats: { total: number; mouse_move: number; click: number; eye_gaze: number; scroll: number; long_press: number; pinch: number; double_tap: number };
   currentRange: string;
   currentDevice: DeviceType | "all";
   deviceCounts: { mobile: number; tablet: number; desktop: number };
@@ -75,7 +78,7 @@ interface Props {
 export default function HeatmapPageClient({ site, page, screenshotUrl, events, stats, currentRange, currentDevice, deviceCounts, customFrom, customTo }: Props) {
   const router = useRouter();
   const pathname = usePathname();
-  const [activeTypes, setActiveTypes] = useState<EventType[]>(["mouse_move", "click", "eye_gaze", "scroll"]);
+  const [activeTypes, setActiveTypes] = useState<EventType[]>(["mouse_move", "click", "eye_gaze", "scroll", "long_press", "pinch", "double_tap"]);
   const [embedOpen, setEmbedOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -171,12 +174,15 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
         <StatCard label="Total" value={stats.total} color="#a78bfa" />
         <StatCard label="Mouse" value={stats.mouse_move} color="#06B6D4" />
         <StatCard label="Clicks" value={stats.click} color="#8B5CF6" />
         <StatCard label="Eye" value={stats.eye_gaze} color="#FBB124" />
         <StatCard label="Scroll" value={stats.scroll} color="#34D399" />
+        <StatCard label="Hold" value={stats.long_press} color="#FB7185" />
+        <StatCard label="Pinch" value={stats.pinch} color="#F9A8D4" />
+        <StatCard label="D.Tap" value={stats.double_tap} color="#FDB974" />
       </div>
 
       {/* Controls */}

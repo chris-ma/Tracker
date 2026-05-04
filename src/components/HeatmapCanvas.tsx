@@ -30,6 +30,21 @@ const TYPE_CONFIG: Record<EventType, { gradient: Record<string, string>; radius:
     radius: 40,
     maxOpacity: 0.6,
   },
+  long_press: {
+    gradient: { "0.0": "rgba(251,113,133,0)", "0.5": "rgba(251,113,133,0.6)", "1.0": "rgba(251,113,133,1)" },
+    radius: 35,
+    maxOpacity: 0.85,
+  },
+  pinch: {
+    gradient: { "0.0": "rgba(249,168,212,0)", "0.5": "rgba(249,168,212,0.5)", "1.0": "rgba(249,168,212,1)" },
+    radius: 28,
+    maxOpacity: 0.7,
+  },
+  double_tap: {
+    gradient: { "0.0": "rgba(253,186,116,0)", "0.5": "rgba(253,186,116,0.65)", "1.0": "rgba(253,186,116,1)" },
+    radius: 32,
+    maxOpacity: 0.88,
+  },
 };
 
 export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
@@ -62,6 +77,9 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
       click: [],
       eye_gaze: [],
       scroll: [],
+      long_press: [],
+      pinch: [],
+      double_tap: [],
     };
 
     filtered.forEach((e) => {
