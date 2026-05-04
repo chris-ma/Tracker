@@ -81,7 +81,7 @@
     }
   }
 
-  // ── Mouse tracking ────────────────────────────────────────────────────────
+  // ── Mouse & touch tracking ────────────────────────────────────────────────
   document.addEventListener('mousemove', function (e) {
     var now = Date.now();
     if (now - lastMouseTime < THROTTLE_MS) return;
@@ -92,6 +92,21 @@
   document.addEventListener('click', function (e) {
     push('click', e.clientX, e.clientY);
   });
+
+  // Touch equivalents for mobile
+  var lastTouchTime = 0;
+  document.addEventListener('touchmove', function (e) {
+    var now = Date.now();
+    if (now - lastTouchTime < THROTTLE_MS) return;
+    lastTouchTime = now;
+    var t = e.touches[0];
+    if (t) push('mouse_move', t.clientX, t.clientY);
+  }, { passive: true });
+
+  document.addEventListener('touchend', function (e) {
+    var t = e.changedTouches[0];
+    if (t) push('click', t.clientX, t.clientY);
+  }, { passive: true });
 
   // ── Scroll tracking ───────────────────────────────────────────────────────
   var lastScrollTime = 0;
@@ -231,7 +246,9 @@
     if (EYE_TRACKING) {
       setTimeout(showConsentBanner, 1500);
     }
-    setTimeout(captureScreenshot, 3000);
+    // Give mobile connections more time; skip if already captured this session
+    var screenshotDelay = /Mobi|Android/i.test(navigator.userAgent) ? 6000 : 3000;
+    setTimeout(captureScreenshot, screenshotDelay);
   }
 
   if (document.readyState === 'loading') {
