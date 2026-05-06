@@ -73,6 +73,7 @@
       pageUrl: window.location.href,
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
+      pageScrollHeight: document.documentElement.scrollHeight,
       events: eventQueue.slice(),
     };
 

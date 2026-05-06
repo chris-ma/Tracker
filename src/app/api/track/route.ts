@@ -14,7 +14,7 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { apiKey, pageKey, sessionId, pageUrl, viewportWidth, viewportHeight, events, endedAt } = body;
+    const { apiKey, pageKey, sessionId, pageUrl, viewportWidth, viewportHeight, pageScrollHeight, events, endedAt } = body;
 
     if (!apiKey || !pageKey) {
       return NextResponse.json({ error: "Missing keys" }, { status: 400, headers: CORS });
@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
           page_url: pageUrl,
           viewport_width: viewportWidth ?? 0,
           viewport_height: viewportHeight ?? 0,
+          page_scroll_height: pageScrollHeight ?? null,
           user_agent: req.headers.get("user-agent"),
         })
         .select("id")

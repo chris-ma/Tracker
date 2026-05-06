@@ -7,6 +7,8 @@ interface Props {
   events: { event_type: EventType; x: number; y: number }[];
   screenshotUrl: string | null;
   activeTypes: EventType[];
+  pageScrollHeight?: number;
+  pageViewportWidth?: number;
 }
 
 const TYPE_CONFIG: Record<EventType, { gradient: Record<string, string>; radius: number; maxOpacity: number }> = {
@@ -47,10 +49,9 @@ const TYPE_CONFIG: Record<EventType, { gradient: Record<string, string>; radius:
   },
 };
 
-export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
+export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHeight, pageViewportWidth }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
 
   const hasEvents = events.filter((e) => activeTypes.includes(e.event_type)).length > 0;
@@ -109,32 +110,44 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
     return () => ro.disconnect();
   }, [draw]);
 
+  // When we know the page's true scroll height and the viewport width it was
+  // captured at, we can set the container to the correct aspect ratio so all
+  // events render at the right proportional position on the full page.
+  const hasAspectRatio = pageScrollHeight && pageViewportWidth && pageScrollHeight > 0 && pageViewportWidth > 0;
+  const aspectRatio = hasAspectRatio ? `${pageViewportWidth} / ${pageScrollHeight}` : undefined;
+
   return (
     <div
       ref={containerRef}
       className="relative w-full rounded-xl"
       style={{
-        minHeight: 500,
-        background: screenshotUrl ? "rgba(0,0,0,0.3)" : "#ffffff",
+        aspectRatio,
+        minHeight: hasAspectRatio ? undefined : 500,
+        background: screenshotUrl ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.04)",
         border: "1px solid rgba(255,255,255,0.08)",
       }}
     >
-      {screenshotUrl ? (
+      {screenshotUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           ref={imgRef}
           src={screenshotUrl}
           alt="Page screenshot"
-          className="w-full h-auto block"
           onLoad={() => setImgLoaded(true)}
-          style={{ display: "block" }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            // fill the container (which is sized to the correct page aspect ratio)
+            // so both viewport-only and full-page screenshots cover the background
+            objectFit: "fill",
+            display: "block",
+          }}
         />
-      ) : (
-        // White placeholder — heatmap still renders on top via the canvas
-        <div style={{ height: 600 }} />
       )}
 
-      {/* Heatmap canvas — renders over screenshot or white background */}
+      {/* Heatmap canvas — renders over screenshot or background */}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full pointer-events-none"

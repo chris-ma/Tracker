@@ -73,9 +73,11 @@ interface Props {
   deviceCounts: { mobile: number; tablet: number; desktop: number };
   customFrom?: string;
   customTo?: string;
+  pageScrollHeight?: number;
+  pageViewportWidth?: number;
 }
 
-export default function HeatmapPageClient({ site, page, screenshotUrl, events, stats, currentRange, currentDevice, deviceCounts, customFrom, customTo }: Props) {
+export default function HeatmapPageClient({ site, page, screenshotUrl, events, stats, currentRange, currentDevice, deviceCounts, customFrom, customTo, pageScrollHeight, pageViewportWidth }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [activeTypes, setActiveTypes] = useState<EventType[]>(["mouse_move", "click", "eye_gaze", "scroll", "long_press", "pinch", "double_tap"]);
@@ -300,6 +302,8 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
           events={events}
           screenshotUrl={screenshotUrl}
           activeTypes={activeTypes}
+          pageScrollHeight={pageScrollHeight}
+          pageViewportWidth={pageViewportWidth}
         />
       </motion.div>
 

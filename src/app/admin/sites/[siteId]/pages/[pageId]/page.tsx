@@ -49,6 +49,22 @@ async function getEvents(
   return all;
 }
 
+async function getPageDimensions(pageId: string) {
+  const db = createSupabaseServiceRole();
+  const { data } = await db
+    .from("sessions")
+    .select("viewport_width, page_scroll_height")
+    .eq("page_id", pageId)
+    .not("page_scroll_height", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (!data || !data.length) return null;
+  const scrollHeight = Math.max(...data.map((s: { page_scroll_height: number | null }) => s.page_scroll_height ?? 0));
+  const viewportWidth = data[0].viewport_width as number;
+  return scrollHeight > 0 ? { scrollHeight, viewportWidth } : null;
+}
+
 async function getDeviceCounts(pageId: string, from?: string, to?: string) {
   const db = createSupabaseServiceRole();
   let q = db
@@ -110,9 +126,10 @@ export default async function HeatmapPage({
     toDate = new Date(customTo + "T23:59:59").toISOString();
   }
 
-  const [events, deviceCounts] = await Promise.all([
+  const [events, deviceCounts, pageDimensions] = await Promise.all([
     getEvents(pageId, device, fromDate, toDate),
     getDeviceCounts(pageId, fromDate, toDate),
+    getPageDimensions(pageId),
   ]);
 
   const stats = {
@@ -138,6 +155,8 @@ export default async function HeatmapPage({
       deviceCounts={deviceCounts}
       customFrom={customFrom}
       customTo={customTo}
+      pageScrollHeight={pageDimensions?.scrollHeight}
+      pageViewportWidth={pageDimensions?.viewportWidth}
     />
   );
 }
