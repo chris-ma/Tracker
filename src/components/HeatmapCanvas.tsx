@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import type { EventType, HeatmapPoint } from "@/lib/types";
 
 interface Props {
@@ -55,13 +55,14 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
 
   const hasEvents = events.filter((e) => activeTypes.includes(e.event_type)).length > 0;
 
-  useEffect(() => {
+  const draw = useCallback(() => {
     if (!canvasRef.current || !containerRef.current) return;
 
     const container = containerRef.current;
     const canvas = canvasRef.current;
     const W = container.clientWidth;
     const H = container.clientHeight;
+    if (W === 0 || H === 0) return;
     canvas.width = W;
     canvas.height = H;
 
@@ -92,12 +93,26 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes }: Props) {
       const cfg = TYPE_CONFIG[type];
       drawHeatmapLayer(ctx, points, cfg.radius, cfg.gradient, cfg.maxOpacity, W, H);
     });
-  }, [events, activeTypes, imgLoaded]);
+  }, [events, activeTypes]);
+
+  // Redraw whenever events/types change or image loads
+  useEffect(() => {
+    draw();
+  }, [draw, imgLoaded]);
+
+  // Redraw when container is resized (handles image load changing container height)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(() => draw());
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [draw]);
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full overflow-hidden rounded-xl"
+      className="relative w-full rounded-xl"
       style={{
         minHeight: 500,
         background: screenshotUrl ? "rgba(0,0,0,0.3)" : "#ffffff",
