@@ -57,8 +57,11 @@
 
   // ── Event queue ───────────────────────────────────────────────────────────
   function push(type, x, y) {
+    // Convert viewport-relative clientY to absolute page position so events
+    // map correctly onto a full-page screenshot.
+    var pageHeight = document.documentElement.scrollHeight;
     var normX = Math.max(0, Math.min(1, x / window.innerWidth));
-    var normY = Math.max(0, Math.min(1, y / window.innerHeight));
+    var normY = Math.max(0, Math.min(1, (y + window.scrollY) / pageHeight));
     eventQueue.push({ type: type, x: normX, y: normY, ts: Date.now() });
   }
 
