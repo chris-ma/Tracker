@@ -28,28 +28,25 @@ async function getEvents(
   to?: string
 ) {
   const db = createSupabaseServiceRole();
+  const PAGE = 1000;
+  const all: Pick<TrackerEvent, "event_type" | "x" | "y" | "created_at">[] = [];
 
-  if (device === "all") {
-    let q = db
-      .from("events")
-      .select("event_type, x, y, created_at")
-      .eq("page_id", pageId);
+  for (let start = 0; ; start += PAGE) {
+    let q = device === "all"
+      ? db.from("events").select("event_type, x, y, created_at").eq("page_id", pageId)
+      : db.from("events").select("event_type, x, y, created_at, sessions!inner(device_type)")
+          .eq("page_id", pageId).eq("sessions.device_type", device);
+
     if (from) q = q.gte("created_at", from);
-    if (to) q = q.lte("created_at", to);
-    const { data } = await q.limit(50000);
-    return (data ?? []) as Pick<TrackerEvent, "event_type" | "x" | "y" | "created_at">[];
+    if (to)   q = q.lte("created_at", to);
+
+    const { data } = await q.range(start, start + PAGE - 1);
+    const rows = (data ?? []) as Pick<TrackerEvent, "event_type" | "x" | "y" | "created_at">[];
+    all.push(...rows);
+    if (rows.length < PAGE) break;
   }
 
-  // Filter by device via the sessions join using !inner
-  let q = db
-    .from("events")
-    .select("event_type, x, y, created_at, sessions!inner(device_type)")
-    .eq("page_id", pageId)
-    .eq("sessions.device_type", device);
-  if (from) q = q.gte("created_at", from);
-  if (to) q = q.lte("created_at", to);
-  const { data } = await q.limit(50000);
-  return (data ?? []) as Pick<TrackerEvent, "event_type" | "x" | "y" | "created_at">[];
+  return all;
 }
 
 async function getDeviceCounts(pageId: string, from?: string, to?: string) {
