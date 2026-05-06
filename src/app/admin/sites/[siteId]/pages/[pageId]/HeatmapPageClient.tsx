@@ -81,6 +81,8 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
   const [activeTypes, setActiveTypes] = useState<EventType[]>(["mouse_move", "click", "eye_gaze", "scroll", "long_press", "pinch", "double_tap"]);
   const [embedOpen, setEmbedOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleRangeChange = useCallback((range: DateRange, from?: string, to?: string) => {
@@ -116,6 +118,18 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }, [site.api_key, page.page_key, router]);
+
+  const handleClearData = useCallback(async () => {
+    if (!confirmClear) { setConfirmClear(true); return; }
+    setClearing(true);
+    setConfirmClear(false);
+    try {
+      await fetch(`/api/pages/${page.id}/reset`, { method: "DELETE" });
+      router.refresh();
+    } finally {
+      setClearing(false);
+    }
+  }, [confirmClear, page.id, router]);
 
   function toggleType(type: EventType) {
     setActiveTypes((prev) =>
@@ -164,6 +178,20 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
             }
             <span className="hidden sm:inline">{uploading ? "Uploading…" : "Upload Screenshot"}</span>
             <span className="sm:hidden">{uploading ? "…" : "Upload"}</span>
+          </button>
+          <button
+            onClick={handleClearData}
+            onBlur={() => setConfirmClear(false)}
+            disabled={clearing}
+            className="btn-ghost text-xs sm:text-sm transition-colors"
+            style={confirmClear ? { color: "#f87171", borderColor: "rgba(248,113,113,0.5)", background: "rgba(248,113,113,0.1)" } : {}}
+          >
+            {clearing
+              ? <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
+              : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" /></svg>
+            }
+            <span className="hidden sm:inline">{clearing ? "Clearing…" : confirmClear ? "Confirm clear?" : "Clear data"}</span>
+            <span className="sm:hidden">{clearing ? "…" : confirmClear ? "Confirm?" : "Clear"}</span>
           </button>
           <button onClick={() => setEmbedOpen(true)} className="btn-ghost text-xs sm:text-sm">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6" /></svg>
