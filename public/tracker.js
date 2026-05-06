@@ -229,9 +229,10 @@
     var now = Date.now();
     if (now - lastScrollTime < 200) return;
     lastScrollTime = now;
-    var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-    if (maxScroll <= 0) return;
-    var frac = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+    var pageHeight = document.documentElement.scrollHeight;
+    if (pageHeight <= window.innerHeight) return;
+    // Normalise to full page height (same coordinate space as other events)
+    var frac = Math.max(0, Math.min(1, (window.scrollY + window.innerHeight / 2) / pageHeight));
     eventQueue.push({ type: 'scroll', x: 0.5, y: frac, ts: now });
   }, { passive: true });
 
@@ -250,9 +251,8 @@
       allowTaint: true,
       scale: 0.25,
       windowWidth: window.innerWidth,
-      windowHeight: window.innerHeight,
-      height: window.innerHeight,
-      y: window.scrollY,
+      windowHeight: document.documentElement.scrollHeight,
+      // No height/y — capture the full page from top to bottom
     }).then(function (canvas) {
       console.log('[Tracker] Capture complete, encoding blob…');
       canvas.toBlob(function (blob) {
