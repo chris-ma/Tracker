@@ -119,14 +119,16 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHe
     return () => ro.disconnect();
   }, [draw]);
 
-  // Screenshot natural dimensions are the ground truth for the visual background —
-  // dots must be placed relative to the same coordinate space as the image.
-  // Stored page dimensions are a fallback for when there is no screenshot yet.
-  const aspectRatio = imgNaturalSize
-    ? `${imgNaturalSize.w} / ${imgNaturalSize.h}`
-    : pageScrollHeight && pageViewportWidth && pageScrollHeight > 0 && pageViewportWidth > 0
-    ? `${pageViewportWidth} / ${pageScrollHeight}`
-    : undefined;
+  // Stored page dimensions define the canonical coordinate space that events
+  // are normalised against — use them first so the container is always full-page
+  // height. Fall back to screenshot natural dimensions (old sessions without the
+  // column), then to a minimum height when neither is available.
+  const aspectRatio =
+    pageScrollHeight && pageViewportWidth && pageScrollHeight > 0 && pageViewportWidth > 0
+      ? `${pageViewportWidth} / ${pageScrollHeight}`
+      : imgNaturalSize
+      ? `${imgNaturalSize.w} / ${imgNaturalSize.h}`
+      : undefined;
   const hasAspectRatio = aspectRatio !== undefined;
 
   return (
@@ -152,10 +154,10 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHe
           }}
           style={{
             position: "absolute",
-            top: 0,
-            left: 0,
+            inset: 0,
             width: "100%",
-            height: "auto",
+            height: "100%",
+            objectFit: "fill",
             display: "block",
           }}
         />
