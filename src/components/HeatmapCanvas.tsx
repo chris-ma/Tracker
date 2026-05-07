@@ -53,9 +53,15 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHe
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
-  // Natural image dimensions used as aspect-ratio fallback when stored page
-  // dimensions aren't available (sessions created before that column existed).
   const [imgNaturalSize, setImgNaturalSize] = useState<{ w: number; h: number } | null>(null);
+
+  // Reset when the screenshot URL changes so a stale size doesn't linger.
+  const prevScreenshotUrl = useRef(screenshotUrl);
+  if (prevScreenshotUrl.current !== screenshotUrl) {
+    prevScreenshotUrl.current = screenshotUrl;
+    setImgNaturalSize(null);
+    setImgLoaded(false);
+  }
 
   const hasEvents = events.filter((e) => activeTypes.includes(e.event_type)).length > 0;
 
@@ -113,14 +119,14 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHe
     return () => ro.disconnect();
   }, [draw]);
 
-  // Priority 1: stored page dimensions (most accurate, available for new sessions).
-  // Priority 2: screenshot natural dimensions as fallback for old sessions.
-  const aspectRatio =
-    pageScrollHeight && pageViewportWidth && pageScrollHeight > 0 && pageViewportWidth > 0
-      ? `${pageViewportWidth} / ${pageScrollHeight}`
-      : imgNaturalSize
-      ? `${imgNaturalSize.w} / ${imgNaturalSize.h}`
-      : undefined;
+  // Screenshot natural dimensions are the ground truth for the visual background —
+  // dots must be placed relative to the same coordinate space as the image.
+  // Stored page dimensions are a fallback for when there is no screenshot yet.
+  const aspectRatio = imgNaturalSize
+    ? `${imgNaturalSize.w} / ${imgNaturalSize.h}`
+    : pageScrollHeight && pageViewportWidth && pageScrollHeight > 0 && pageViewportWidth > 0
+    ? `${pageViewportWidth} / ${pageScrollHeight}`
+    : undefined;
   const hasAspectRatio = aspectRatio !== undefined;
 
   return (
