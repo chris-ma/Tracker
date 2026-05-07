@@ -15,7 +15,7 @@ export function EmbedCodeModal({ open, onClose, apiKey, pageKey, pageName }: Pro
   const [copied, setCopied] = useState(false);
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://yourapp.vercel.app";
-  const v = "4"; // bump this whenever tracker.js changes to bust browser cache
+  const v = "5"; // bump this whenever tracker.js changes to bust browser cache
   const code = `<script\n  src="${baseUrl}/tracker.js?v=${v}"\n  data-api-key="${apiKey}"\n  data-page-key="${pageKey}"\n  data-eye-tracking="true"\n  async\n></script>`;
 
   function copy() {

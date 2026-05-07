@@ -250,7 +250,7 @@
       logging: false,
       useCORS: true,
       allowTaint: true,
-      scale: 0.25,
+      scale: 1.0,
       windowWidth: window.innerWidth,
       windowHeight: document.documentElement.scrollHeight,
       // No height/y — capture the full page from top to bottom
@@ -274,7 +274,7 @@
             else console.error('[Tracker] Screenshot upload failed — HTTP', r.status);
           })
           .catch(function (err) { console.error('[Tracker] Screenshot upload error:', err); });
-      }, 'image/jpeg', 0.6);
+      }, 'image/jpeg', 0.75);
     }).catch(function (err) {
       screenshotSent = false;
       console.error('[Tracker] html2canvas capture error:', err);
