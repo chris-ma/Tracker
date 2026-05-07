@@ -13,13 +13,13 @@ interface Props {
 
 const TYPE_CONFIG: Record<EventType, { gradient: Record<string, string>; radius: number; maxOpacity: number }> = {
   mouse_move: {
-    gradient: { "0.0": "rgba(6,182,212,0)", "0.5": "rgba(6,182,212,0.5)", "1.0": "rgba(6,182,212,1)" },
-    radius: 20,
+    gradient: { "0.0": "rgba(6,182,212,1)", "0.5": "rgba(6,182,212,0.35)", "1.0": "rgba(6,182,212,0)" },
+    radius: 8,
     maxOpacity: 0.7,
   },
   click: {
-    gradient: { "0.0": "rgba(139,92,246,0)", "0.5": "rgba(139,92,246,0.6)", "1.0": "rgba(139,92,246,1)" },
-    radius: 30,
+    gradient: { "0.0": "rgba(139,92,246,1)", "0.5": "rgba(139,92,246,0.4)", "1.0": "rgba(139,92,246,0)" },
+    radius: 14,
     maxOpacity: 0.9,
   },
   eye_gaze: {
@@ -28,23 +28,23 @@ const TYPE_CONFIG: Record<EventType, { gradient: Record<string, string>; radius:
     maxOpacity: 0.85,
   },
   scroll: {
-    gradient: { "0.0": "rgba(52,211,153,0)", "0.5": "rgba(52,211,153,0.45)", "1.0": "rgba(52,211,153,1)" },
-    radius: 40,
+    gradient: { "0.0": "rgba(52,211,153,1)", "0.5": "rgba(52,211,153,0.35)", "1.0": "rgba(52,211,153,0)" },
+    radius: 16,
     maxOpacity: 0.6,
   },
   long_press: {
-    gradient: { "0.0": "rgba(251,113,133,0)", "0.5": "rgba(251,113,133,0.6)", "1.0": "rgba(251,113,133,1)" },
-    radius: 35,
+    gradient: { "0.0": "rgba(251,113,133,1)", "0.5": "rgba(251,113,133,0.4)", "1.0": "rgba(251,113,133,0)" },
+    radius: 14,
     maxOpacity: 0.85,
   },
   pinch: {
-    gradient: { "0.0": "rgba(249,168,212,0)", "0.5": "rgba(249,168,212,0.5)", "1.0": "rgba(249,168,212,1)" },
-    radius: 28,
+    gradient: { "0.0": "rgba(249,168,212,1)", "0.5": "rgba(249,168,212,0.35)", "1.0": "rgba(249,168,212,0)" },
+    radius: 12,
     maxOpacity: 0.7,
   },
   double_tap: {
-    gradient: { "0.0": "rgba(253,186,116,0)", "0.5": "rgba(253,186,116,0.65)", "1.0": "rgba(253,186,116,1)" },
-    radius: 32,
+    gradient: { "0.0": "rgba(253,186,116,1)", "0.5": "rgba(253,186,116,0.4)", "1.0": "rgba(253,186,116,0)" },
+    radius: 13,
     maxOpacity: 0.88,
   },
 };
@@ -53,6 +53,9 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHe
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
+  // Natural image dimensions used as aspect-ratio fallback when stored page
+  // dimensions aren't available (sessions created before that column existed).
+  const [imgNaturalSize, setImgNaturalSize] = useState<{ w: number; h: number } | null>(null);
 
   const hasEvents = events.filter((e) => activeTypes.includes(e.event_type)).length > 0;
 
@@ -110,11 +113,15 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHe
     return () => ro.disconnect();
   }, [draw]);
 
-  // When we know the page's true scroll height and the viewport width it was
-  // captured at, we can set the container to the correct aspect ratio so all
-  // events render at the right proportional position on the full page.
-  const hasAspectRatio = pageScrollHeight && pageViewportWidth && pageScrollHeight > 0 && pageViewportWidth > 0;
-  const aspectRatio = hasAspectRatio ? `${pageViewportWidth} / ${pageScrollHeight}` : undefined;
+  // Priority 1: stored page dimensions (most accurate, available for new sessions).
+  // Priority 2: screenshot natural dimensions as fallback for old sessions.
+  const aspectRatio =
+    pageScrollHeight && pageViewportWidth && pageScrollHeight > 0 && pageViewportWidth > 0
+      ? `${pageViewportWidth} / ${pageScrollHeight}`
+      : imgNaturalSize
+      ? `${imgNaturalSize.w} / ${imgNaturalSize.h}`
+      : undefined;
+  const hasAspectRatio = aspectRatio !== undefined;
 
   return (
     <div
@@ -132,7 +139,11 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHe
         <img
           src={screenshotUrl}
           alt="Page screenshot"
-          onLoad={() => setImgLoaded(true)}
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            setImgNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+            setImgLoaded(true);
+          }}
           style={{
             position: "absolute",
             top: 0,
