@@ -65,9 +65,11 @@ interface Props {
   customTo?: string;
   pageScrollHeight?: number;
   pageViewportWidth?: number;
+  screenshotViewportWidth?: number;
+  screenshotPageHeight?: number;
 }
 
-export default function HeatmapPageClient({ site, page, screenshotUrl, events, stats, currentRange, currentDevice, deviceCounts, customFrom, customTo, pageScrollHeight, pageViewportWidth }: Props) {
+export default function HeatmapPageClient({ site, page, screenshotUrl, events, stats, currentRange, currentDevice, deviceCounts, customFrom, customTo, pageScrollHeight, pageViewportWidth, screenshotViewportWidth, screenshotPageHeight }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [activeTypes, setActiveTypes] = useState<EventType[]>([]);
@@ -291,6 +293,8 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
           activeTypes={activeTypes}
           pageScrollHeight={pageScrollHeight}
           pageViewportWidth={pageViewportWidth}
+          screenshotViewportWidth={screenshotViewportWidth}
+          screenshotPageHeight={screenshotPageHeight}
         />
       </motion.div>
 

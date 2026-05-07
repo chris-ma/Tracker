@@ -10,7 +10,7 @@ async function getPageData(siteId: string, pageId: string, device: DeviceType) {
     db.from("sites").select("*").eq("id", siteId).single(),
     db.from("pages").select("*").eq("id", pageId).eq("site_id", siteId).single(),
     db.from("screenshots")
-      .select("storage_path, captured_at")
+      .select("storage_path, captured_at, viewport_width, page_height")
       .eq("page_id", pageId)
       .eq("device_type", device)
       .maybeSingle(),
@@ -26,7 +26,13 @@ async function getPageData(siteId: string, pageId: string, device: DeviceType) {
       })()
     : null;
 
-  return { site: site as Site, page: page as Page, screenshotUrl };
+  return {
+    site: site as Site,
+    page: page as Page,
+    screenshotUrl,
+    screenshotViewportWidth: (screenshot?.viewport_width as number | null) ?? null,
+    screenshotPageHeight: (screenshot?.page_height as number | null) ?? null,
+  };
 }
 
 async function getEvents(
@@ -166,6 +172,8 @@ export default async function HeatmapPage({
       customTo={customTo}
       pageScrollHeight={pageDimensions?.scrollHeight}
       pageViewportWidth={pageDimensions?.viewportWidth}
+      screenshotViewportWidth={pageData.screenshotViewportWidth ?? undefined}
+      screenshotPageHeight={pageData.screenshotPageHeight ?? undefined}
     />
   );
 }

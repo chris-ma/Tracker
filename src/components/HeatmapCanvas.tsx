@@ -9,6 +9,8 @@ interface Props {
   activeTypes: EventType[];
   pageScrollHeight?: number;
   pageViewportWidth?: number;
+  screenshotViewportWidth?: number;
+  screenshotPageHeight?: number;
 }
 
 const TYPE_CONFIG: Record<EventType, { gradient: Record<string, string>; radius: number; maxOpacity: number }> = {
@@ -49,7 +51,7 @@ const TYPE_CONFIG: Record<EventType, { gradient: Record<string, string>; radius:
   },
 };
 
-export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHeight, pageViewportWidth }: Props) {
+export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHeight, pageViewportWidth, screenshotViewportWidth, screenshotPageHeight }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -119,15 +121,15 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHe
     return () => ro.disconnect();
   }, [draw]);
 
-  // Stored page dimensions define the canonical coordinate space that events
-  // are normalised against — use them first so the container is always full-page
-  // height. Fall back to screenshot natural dimensions (old sessions without the
-  // column), then to a minimum height when neither is available.
+  // Priority: screenshot's own stored dimensions (exact capture size) → screenshot
+  // natural size from onLoad → session-derived page dims → undefined (min-height fallback).
   const aspectRatio =
-    pageScrollHeight && pageViewportWidth && pageScrollHeight > 0 && pageViewportWidth > 0
-      ? `${pageViewportWidth} / ${pageScrollHeight}`
+    screenshotViewportWidth && screenshotPageHeight && screenshotViewportWidth > 0 && screenshotPageHeight > 0
+      ? `${screenshotViewportWidth} / ${screenshotPageHeight}`
       : imgNaturalSize
       ? `${imgNaturalSize.w} / ${imgNaturalSize.h}`
+      : pageScrollHeight && pageViewportWidth && pageScrollHeight > 0 && pageViewportWidth > 0
+      ? `${pageViewportWidth} / ${pageScrollHeight}`
       : undefined;
   const hasAspectRatio = aspectRatio !== undefined;
 

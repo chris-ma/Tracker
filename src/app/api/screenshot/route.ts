@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     let pageKey: string | null = null;
     let imageBuffer: Buffer | null = null;
     let viewportWidth = 0;
+    let pageScrollHeight = 0;
 
     const contentType = req.headers.get("content-type") ?? "";
 
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
       apiKey = formData.get("apiKey") as string | null;
       pageKey = formData.get("pageKey") as string | null;
       viewportWidth = parseInt(formData.get("viewportWidth") as string) || 0;
+      pageScrollHeight = parseInt(formData.get("pageScrollHeight") as string) || 0;
       const file = formData.get("image") as File | null;
       if (file) imageBuffer = Buffer.from(await file.arrayBuffer());
     } else {
@@ -35,6 +37,7 @@ export async function POST(req: NextRequest) {
       apiKey = body.apiKey;
       pageKey = body.pageKey;
       viewportWidth = body.viewportWidth || 0;
+      pageScrollHeight = body.pageScrollHeight || 0;
       if (body.imageBase64) {
         const base64Data = (body.imageBase64 as string).replace(/^data:image\/\w+;base64,/, "");
         imageBuffer = Buffer.from(base64Data, "base64");
@@ -90,7 +93,7 @@ export async function POST(req: NextRequest) {
     await db
       .from("screenshots")
       .upsert(
-        { page_id: page.id, device_type: deviceType, storage_path: storagePath, captured_at: new Date().toISOString() },
+        { page_id: page.id, device_type: deviceType, viewport_width: viewportWidth || null, page_height: pageScrollHeight || null, storage_path: storagePath, captured_at: new Date().toISOString() },
         { onConflict: "page_id,device_type" }
       );
 
