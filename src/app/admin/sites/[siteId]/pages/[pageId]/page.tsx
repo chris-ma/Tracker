@@ -9,13 +9,17 @@ async function getPageData(siteId: string, pageId: string) {
   const [{ data: site }, { data: page }, { data: screenshot }] = await Promise.all([
     db.from("sites").select("*").eq("id", siteId).single(),
     db.from("pages").select("*").eq("id", pageId).eq("site_id", siteId).single(),
-    db.from("screenshots").select("storage_path").eq("page_id", pageId).maybeSingle(),
+    db.from("screenshots").select("storage_path, captured_at").eq("page_id", pageId).maybeSingle(),
   ]);
 
   if (!site || !page) return null;
 
   const screenshotUrl = screenshot?.storage_path
-    ? db.storage.from("screenshots").getPublicUrl(screenshot.storage_path).data.publicUrl
+    ? (() => {
+        const base = db.storage.from("screenshots").getPublicUrl(screenshot.storage_path).data.publicUrl;
+        const ts = screenshot.captured_at ? `?t=${new Date(screenshot.captured_at).getTime()}` : "";
+        return base + ts;
+      })()
     : null;
 
   return { site: site as Site, page: page as Page, screenshotUrl };

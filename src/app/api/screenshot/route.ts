@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
     const urlHash = createHash("md5").update(page.page_url).digest("hex");
     const storagePath = `${site.id}/${urlHash}.jpg`;
 
+    // Remove stale file first so the CDN sees a genuine new object (not a cached upsert)
+    await db.storage.from("screenshots").remove([storagePath]);
+
     const { error: uploadError } = await db.storage
       .from("screenshots")
       .upload(storagePath, imageBuffer, {

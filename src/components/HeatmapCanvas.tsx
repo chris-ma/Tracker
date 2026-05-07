@@ -23,9 +23,9 @@ const TYPE_CONFIG: Record<EventType, { gradient: Record<string, string>; radius:
     maxOpacity: 0.9,
   },
   eye_gaze: {
-    gradient: { "0.0": "rgba(251,191,36,0)", "0.5": "rgba(251,191,36,0.5)", "1.0": "rgba(251,191,36,1)" },
-    radius: 25,
-    maxOpacity: 0.75,
+    gradient: { "0.0": "rgba(251,191,36,1)", "0.5": "rgba(251,191,36,0.35)", "1.0": "rgba(251,191,36,0)" },
+    radius: 10,
+    maxOpacity: 0.85,
   },
   scroll: {
     gradient: { "0.0": "rgba(52,211,153,0)", "0.5": "rgba(52,211,153,0.45)", "1.0": "rgba(52,211,153,1)" },

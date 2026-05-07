@@ -80,7 +80,7 @@ interface Props {
 export default function HeatmapPageClient({ site, page, screenshotUrl, events, stats, currentRange, currentDevice, deviceCounts, customFrom, customTo, pageScrollHeight, pageViewportWidth }: Props) {
   const router = useRouter();
   const pathname = usePathname();
-  const [activeTypes, setActiveTypes] = useState<EventType[]>(["mouse_move", "click", "eye_gaze", "scroll", "long_press", "pinch", "double_tap"]);
+  const [activeTypes, setActiveTypes] = useState<EventType[]>([]);
   const [embedOpen, setEmbedOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [clearing, setClearing] = useState(false);
