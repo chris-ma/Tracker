@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid page_key" }, { status: 401, headers: CORS });
     }
 
+    const deviceType = (viewportWidth ?? 0) >= 1024 ? "desktop" : (viewportWidth ?? 0) >= 768 ? "tablet" : "mobile";
+
     // Create session if this is the first batch (no sessionId yet)
     let resolvedSessionId = sessionId;
     if (!sessionId) {
@@ -57,6 +59,7 @@ export async function POST(req: NextRequest) {
           viewport_width: viewportWidth ?? 0,
           viewport_height: viewportHeight ?? 0,
           page_scroll_height: pageScrollHeight ?? null,
+          device_type: deviceType,
           user_agent: req.headers.get("user-agent"),
         })
         .select("id")
