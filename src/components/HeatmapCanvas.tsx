@@ -130,7 +130,6 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHe
       {screenshotUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          ref={imgRef}
           src={screenshotUrl}
           alt="Page screenshot"
           onLoad={() => setImgLoaded(true)}
