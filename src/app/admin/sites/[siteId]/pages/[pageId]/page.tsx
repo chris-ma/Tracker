@@ -57,15 +57,16 @@ async function getEvents(
   return all;
 }
 
-async function getPageDimensions(pageId: string) {
+async function getPageDimensions(pageId: string, device: DeviceType) {
   const db = createSupabaseServiceRole();
   const { data } = await db
     .from("sessions")
     .select("viewport_width, page_scroll_height")
     .eq("page_id", pageId)
+    .eq("device_type", device)
     .not("page_scroll_height", "is", null)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(10);
 
   if (!data || !data.length) return null;
   const scrollHeight = Math.max(...data.map((s: { page_scroll_height: number | null }) => s.page_scroll_height ?? 0));
@@ -137,7 +138,7 @@ export default async function HeatmapPage({
   const [events, deviceCounts, pageDimensions] = await Promise.all([
     getEvents(pageId, device, fromDate, toDate),
     getDeviceCounts(pageId, fromDate, toDate),
-    getPageDimensions(pageId),
+    getPageDimensions(pageId, device),
   ]);
 
   const stats = {
