@@ -3,13 +3,17 @@ import { createSupabaseServiceRole } from "@/lib/supabase-server";
 import HeatmapPageClient from "./HeatmapPageClient";
 import type { Site, Page, TrackerEvent, DeviceType } from "@/lib/types";
 
-async function getPageData(siteId: string, pageId: string) {
+async function getPageData(siteId: string, pageId: string, device: DeviceType) {
   const db = createSupabaseServiceRole();
 
   const [{ data: site }, { data: page }, { data: screenshot }] = await Promise.all([
     db.from("sites").select("*").eq("id", siteId).single(),
     db.from("pages").select("*").eq("id", pageId).eq("site_id", siteId).single(),
-    db.from("screenshots").select("storage_path, captured_at").eq("page_id", pageId).maybeSingle(),
+    db.from("screenshots")
+      .select("storage_path, captured_at")
+      .eq("page_id", pageId)
+      .eq("device_type", device)
+      .maybeSingle(),
   ]);
 
   if (!site || !page) return null;
@@ -27,7 +31,7 @@ async function getPageData(siteId: string, pageId: string) {
 
 async function getEvents(
   pageId: string,
-  device: DeviceType | "all",
+  device: DeviceType,
   from?: string,
   to?: string
 ) {
@@ -36,10 +40,10 @@ async function getEvents(
   const all: Pick<TrackerEvent, "event_type" | "x" | "y" | "created_at">[] = [];
 
   for (let start = 0; ; start += PAGE) {
-    let q = device === "all"
-      ? db.from("events").select("event_type, x, y, created_at").eq("page_id", pageId)
-      : db.from("events").select("event_type, x, y, created_at, sessions!inner(device_type)")
-          .eq("page_id", pageId).eq("sessions.device_type", device);
+    let q = db.from("events")
+      .select("event_type, x, y, created_at, sessions!inner(device_type)")
+      .eq("page_id", pageId)
+      .eq("sessions.device_type", device);
 
     if (from) q = q.gte("created_at", from);
     if (to)   q = q.lte("created_at", to);
@@ -98,9 +102,9 @@ export default async function HeatmapPage({
   const range = sp.range ?? "7d";
   const customFrom = sp.from;
   const customTo = sp.to;
-  const device = (sp.device ?? "all") as DeviceType | "all";
+  const device = (sp.device ?? "mobile") as DeviceType;
 
-  const pageData = await getPageData(siteId, pageId);
+  const pageData = await getPageData(siteId, pageId, device);
   if (!pageData) notFound();
 
   // Compute date range

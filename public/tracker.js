@@ -266,6 +266,7 @@
         var fd = new FormData();
         fd.append('apiKey', API_KEY);
         fd.append('pageKey', PAGE_KEY);
+        fd.append('viewportWidth', String(window.innerWidth));
         fd.append('image', blob, 'screenshot.jpg');
         // Use fetch+keepalive — sendBeacon is unreliable for multipart on iOS Safari
         fetch(BASE_URL + '/api/screenshot', { method: 'POST', body: fd, keepalive: true })

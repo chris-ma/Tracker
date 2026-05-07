@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     let apiKey: string | null = null;
     let pageKey: string | null = null;
     let imageBuffer: Buffer | null = null;
+    let viewportWidth = 0;
 
     const contentType = req.headers.get("content-type") ?? "";
 
@@ -26,17 +27,21 @@ export async function POST(req: NextRequest) {
       const formData = await req.formData();
       apiKey = formData.get("apiKey") as string | null;
       pageKey = formData.get("pageKey") as string | null;
+      viewportWidth = parseInt(formData.get("viewportWidth") as string) || 0;
       const file = formData.get("image") as File | null;
       if (file) imageBuffer = Buffer.from(await file.arrayBuffer());
     } else {
       const body = await req.json();
       apiKey = body.apiKey;
       pageKey = body.pageKey;
+      viewportWidth = body.viewportWidth || 0;
       if (body.imageBase64) {
         const base64Data = (body.imageBase64 as string).replace(/^data:image\/\w+;base64,/, "");
         imageBuffer = Buffer.from(base64Data, "base64");
       }
     }
+
+    const deviceType = viewportWidth >= 1024 ? "desktop" : viewportWidth >= 768 ? "tablet" : "mobile";
 
     if (!apiKey || !pageKey || !imageBuffer) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400, headers: CORS });
@@ -66,9 +71,9 @@ export async function POST(req: NextRequest) {
     }
 
     const urlHash = createHash("md5").update(page.page_url).digest("hex");
-    const storagePath = `${site.id}/${urlHash}.jpg`;
+    const storagePath = `${site.id}/${urlHash}_${deviceType}.jpg`;
 
-    // Remove stale file first so the CDN sees a genuine new object (not a cached upsert)
+    // Remove stale file first so the CDN sees a genuine new object
     await db.storage.from("screenshots").remove([storagePath]);
 
     const { error: uploadError } = await db.storage
@@ -85,8 +90,8 @@ export async function POST(req: NextRequest) {
     await db
       .from("screenshots")
       .upsert(
-        { page_id: page.id, storage_path: storagePath, captured_at: new Date().toISOString() },
-        { onConflict: "page_id" }
+        { page_id: page.id, device_type: deviceType, storage_path: storagePath, captured_at: new Date().toISOString() },
+        { onConflict: "page_id,device_type" }
       );
 
     return NextResponse.json({ ok: true }, { headers: CORS });

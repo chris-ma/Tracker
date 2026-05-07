@@ -19,17 +19,7 @@ const EVENT_TYPES: { type: EventType; label: string; shortLabel: string; color: 
   { type: "double_tap", label: "Double Tap", shortLabel: "D.Tap", color: "#FDB974" },
 ];
 
-const DEVICE_OPTIONS: { value: DeviceType | "all"; label: string; shortLabel: string; icon: React.ReactNode }[] = [
-  {
-    value: "all",
-    label: "All Devices",
-    shortLabel: "All",
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" />
-      </svg>
-    ),
-  },
+const DEVICE_OPTIONS: { value: DeviceType; label: string; shortLabel: string; icon: React.ReactNode }[] = [
   {
     value: "desktop",
     label: "Desktop",
@@ -69,7 +59,7 @@ interface Props {
   events: { event_type: EventType; x: number; y: number; created_at: string }[];
   stats: { total: number; mouse_move: number; click: number; eye_gaze: number; scroll: number; long_press: number; pinch: number; double_tap: number };
   currentRange: string;
-  currentDevice: DeviceType | "all";
+  currentDevice: DeviceType;
   deviceCounts: { mobile: number; tablet: number; desktop: number };
   customFrom?: string;
   customTo?: string;
@@ -91,15 +81,14 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
     const params = new URLSearchParams({ range });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    if (currentDevice !== "all") params.set("device", currentDevice);
+    params.set("device", currentDevice);
     router.push(`${pathname}?${params.toString()}`);
   }, [router, pathname, currentDevice]);
 
-  const handleDeviceChange = useCallback((device: DeviceType | "all") => {
-    const params = new URLSearchParams({ range: currentRange });
+  const handleDeviceChange = useCallback((device: DeviceType) => {
+    const params = new URLSearchParams({ range: currentRange, device });
     if (customFrom) params.set("from", customFrom);
     if (customTo) params.set("to", customTo);
-    if (device !== "all") params.set("device", device);
     router.push(`${pathname}?${params.toString()}`);
   }, [router, pathname, currentRange, customFrom, customTo]);
 
@@ -229,9 +218,7 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
           <div className="flex items-center gap-1 p-1 rounded-xl glass w-fit">
             {DEVICE_OPTIONS.map(({ value, label, shortLabel, icon }) => {
               const active = currentDevice === value;
-              const count = value === "all"
-                ? deviceCounts.mobile + deviceCounts.tablet + deviceCounts.desktop
-                : deviceCounts[value as DeviceType];
+              const count = deviceCounts[value];
               return (
                 <button
                   key={value}
@@ -353,7 +340,7 @@ function DebugPanel({
   stats: Record<string, number>;
   screenshotUrl: string | null;
   currentRange: string;
-  currentDevice: string;
+  currentDevice: DeviceType;
   deviceCounts: { mobile: number; tablet: number; desktop: number };
   apiKey: string;
   pageKey: string;
