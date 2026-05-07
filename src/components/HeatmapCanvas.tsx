@@ -135,12 +135,10 @@ export function HeatmapCanvas({ events, screenshotUrl, activeTypes, pageScrollHe
           onLoad={() => setImgLoaded(true)}
           style={{
             position: "absolute",
-            inset: 0,
+            top: 0,
+            left: 0,
             width: "100%",
-            height: "100%",
-            // fill the container (which is sized to the correct page aspect ratio)
-            // so both viewport-only and full-page screenshots cover the background
-            objectFit: "fill",
+            height: "auto",
             display: "block",
           }}
         />
