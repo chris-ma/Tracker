@@ -358,15 +358,19 @@
   function init() {
     flush({ init: true }); // create session
     if (EYE_TRACKING) setTimeout(showConsentBanner, 1500);
-    // Delay screenshot until after window.load + 1.5 s so images/fonts have
-    // loaded and scrollHeight is stable. Earlier captures can have a different
-    // page height than events recorded after full load.
-    if (document.readyState === 'complete') {
+    // Take screenshot 1.5s after window.load so images/fonts have settled.
+    // If load hasn't fired within 5s, proceed anyway with whatever is rendered.
+    var screenshotScheduled = false;
+    function triggerScreenshot() {
+      if (screenshotScheduled) return;
+      screenshotScheduled = true;
       setTimeout(scheduleScreenshot, 1500);
+    }
+    if (document.readyState === 'complete') {
+      triggerScreenshot();
     } else {
-      window.addEventListener('load', function () {
-        setTimeout(scheduleScreenshot, 1500);
-      });
+      window.addEventListener('load', triggerScreenshot);
+      setTimeout(triggerScreenshot, 5000);
     }
   }
 
