@@ -245,17 +245,19 @@
     if (screenshotSent) { console.log('[Tracker] Screenshot already sent, skipping'); return; }
     if (!h2cLoaded) { console.warn('[Tracker] doScreenshot called but html2canvas not ready yet'); return; }
     screenshotSent = true;
-    console.log('[Tracker] Starting html2canvas capture…');
+    // Read dimensions at capture time so stored values match event normalisation
+    var captureWidth  = window.innerWidth;
+    var captureHeight = document.documentElement.scrollHeight;
+    console.log('[Tracker] Starting html2canvas capture (' + captureWidth + 'x' + captureHeight + ')…');
     window.html2canvas(document.documentElement, {
       logging: false,
       useCORS: true,
       allowTaint: true,
       scale: 1.0,
-      windowWidth: window.innerWidth,
-      windowHeight: document.documentElement.scrollHeight,
-      // No height/y — capture the full page from top to bottom
+      windowWidth: captureWidth,
+      windowHeight: window.innerHeight, // use real viewport height so fixed elements render at correct position
     }).then(function (canvas) {
-      console.log('[Tracker] Capture complete, encoding blob…');
+      console.log('[Tracker] Capture complete (' + canvas.width + 'x' + canvas.height + '), encoding blob…');
       canvas.toBlob(function (blob) {
         if (!blob) {
           console.error('[Tracker] canvas.toBlob returned null — canvas may be tainted');
@@ -266,10 +268,9 @@
         var fd = new FormData();
         fd.append('apiKey', API_KEY);
         fd.append('pageKey', PAGE_KEY);
-        fd.append('viewportWidth', String(window.innerWidth));
-        fd.append('pageScrollHeight', String(document.documentElement.scrollHeight));
+        fd.append('viewportWidth', String(captureWidth));
+        fd.append('pageScrollHeight', String(captureHeight));
         fd.append('image', blob, 'screenshot.jpg');
-        // Use fetch+keepalive — sendBeacon is unreliable for multipart on iOS Safari
         fetch(BASE_URL + '/api/screenshot', { method: 'POST', body: fd, keepalive: true })
           .then(function (r) {
             if (r.ok) console.log('[Tracker] Screenshot uploaded OK');
@@ -357,9 +358,16 @@
   function init() {
     flush({ init: true }); // create session
     if (EYE_TRACKING) setTimeout(showConsentBanner, 1500);
-    requestAnimationFrame(function () {
-      requestAnimationFrame(scheduleScreenshot);
-    });
+    // Delay screenshot until after window.load + 1.5 s so images/fonts have
+    // loaded and scrollHeight is stable. Earlier captures can have a different
+    // page height than events recorded after full load.
+    if (document.readyState === 'complete') {
+      setTimeout(scheduleScreenshot, 1500);
+    } else {
+      window.addEventListener('load', function () {
+        setTimeout(scheduleScreenshot, 1500);
+      });
+    }
   }
 
   if (document.readyState === 'loading') {
