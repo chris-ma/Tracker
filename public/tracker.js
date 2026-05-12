@@ -271,7 +271,7 @@
         fd.append('viewportWidth', String(captureWidth));
         fd.append('pageScrollHeight', String(captureHeight));
         fd.append('image', blob, 'screenshot.jpg');
-        fetch(BASE_URL + '/api/screenshot', { method: 'POST', body: fd, keepalive: true })
+        fetch(BASE_URL + '/api/screenshot', { method: 'POST', body: fd })
           .then(function (r) {
             if (r.ok) console.log('[Tracker] Screenshot uploaded OK');
             else console.error('[Tracker] Screenshot upload failed — HTTP', r.status);
