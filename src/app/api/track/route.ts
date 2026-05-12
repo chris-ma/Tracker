@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     // Create session if this is the first batch (no sessionId yet)
     let resolvedSessionId = sessionId;
     if (!sessionId) {
-      const { data: session } = await db
+      const { data: session, error: sessionError } = await db
         .from("sessions")
         .insert({
           site_id: site.id,
@@ -59,11 +59,12 @@ export async function POST(req: NextRequest) {
           viewport_width: viewportWidth ?? 0,
           viewport_height: viewportHeight ?? 0,
           page_scroll_height: pageScrollHeight ?? null,
-          device_type: deviceType,
           user_agent: req.headers.get("user-agent"),
+          // device_type is a GENERATED ALWAYS column — computed from viewport_width automatically
         })
         .select("id")
         .single();
+      if (sessionError) console.error("[track] session insert error:", sessionError.message);
       resolvedSessionId = session?.id;
     }
 
