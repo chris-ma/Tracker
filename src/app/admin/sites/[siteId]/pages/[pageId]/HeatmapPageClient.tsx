@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { HeatmapCanvas } from "@/components/HeatmapCanvas";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { EmbedCodeModal } from "@/components/EmbedCodeModal";
+import { UXAnalysisPanel } from "@/components/UXAnalysisPanel";
 import type { Site, Page, EventType, DateRange, DeviceType } from "@/lib/types";
 
 const EVENT_TYPES: { type: EventType; label: string; shortLabel: string; color: string }[] = [
@@ -72,6 +73,7 @@ interface Props {
 export default function HeatmapPageClient({ site, page, screenshotUrl, events, stats, currentRange, currentDevice, deviceCounts, customFrom, customTo, pageScrollHeight, pageViewportWidth, screenshotViewportWidth, screenshotPageHeight }: Props) {
   const router = useRouter();
   const pathname = usePathname();
+  const [activeView, setActiveView] = useState<"heatmap" | "ux-analysis">("heatmap");
   const [activeTypes, setActiveTypes] = useState<EventType[]>([]);
   const [embedOpen, setEmbedOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -206,6 +208,42 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
         <StatCard label="D.Tap" value={stats.double_tap} color="#FDB974" />
       </div>
 
+      {/* View tabs */}
+      <div className="flex items-center gap-1 p-1 rounded-xl glass w-fit mb-5">
+        {(["heatmap", "ux-analysis"] as const).map((view) => {
+          const active = activeView === view;
+          return (
+            <button
+              key={view}
+              onClick={() => setActiveView(view)}
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
+              style={{ color: active ? "white" : "rgba(255,255,255,0.45)" }}
+            >
+              {active && (
+                <motion.div
+                  layoutId="view-pill"
+                  className="absolute inset-0 rounded-lg"
+                  style={{ background: "linear-gradient(135deg, #8B5CF6, #06B6D4)" }}
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-1.5">
+                {view === "heatmap" ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" /><path d="M8 12a4 4 0 0 1 8 0" />
+                  </svg>
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
+                  </svg>
+                )}
+                {view === "heatmap" ? "Heatmap" : "UX Analysis"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Controls */}
       <div className="flex flex-col gap-3 mb-5">
         <DateRangeFilter
@@ -281,21 +319,32 @@ export default function HeatmapPageClient({ site, page, screenshotUrl, events, s
         </div>
       </div>
 
-      {/* Heatmap */}
+      {/* Main view */}
       <motion.div
+        key={activeView}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <HeatmapCanvas
-          events={events}
-          screenshotUrl={screenshotUrl}
-          activeTypes={activeTypes}
-          pageScrollHeight={pageScrollHeight}
-          pageViewportWidth={pageViewportWidth}
-          screenshotViewportWidth={screenshotViewportWidth}
-          screenshotPageHeight={screenshotPageHeight}
-        />
+        {activeView === "heatmap" ? (
+          <HeatmapCanvas
+            events={events}
+            screenshotUrl={screenshotUrl}
+            activeTypes={activeTypes}
+            pageScrollHeight={pageScrollHeight}
+            pageViewportWidth={pageViewportWidth}
+            screenshotViewportWidth={screenshotViewportWidth}
+            screenshotPageHeight={screenshotPageHeight}
+          />
+        ) : (
+          <div className="glass rounded-xl p-5 sm:p-6">
+            <UXAnalysisPanel
+              pageId={page.id}
+              device={currentDevice}
+              screenshotUrl={screenshotUrl}
+            />
+          </div>
+        )}
       </motion.div>
 
       <EmbedCodeModal
