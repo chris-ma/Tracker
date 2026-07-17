@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer, createSupabaseServiceRole } from "@/lib/supabase-server";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 const UX_PROMPT = `You are a senior UX/UI consultant with expertise across the disciplines in "Don't Make Me Think" (Krug), "Refactoring UI" (Wathan & Schoger), "Laws of UX" (Yablonski), "The Design of Everyday Things" (Norman), "Influence" (Cialdini), and "Building a StoryBrand" (Miller).
 
@@ -122,31 +122,30 @@ export async function POST(
   const imgBuffer = await imgRes.arrayBuffer();
   const base64 = Buffer.from(imgBuffer).toString("base64");
 
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "DEEPSEEK_API_KEY not configured" }, { status: 500 });
+    return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
   }
 
-  const client = new OpenAI({
-    apiKey,
-    baseURL: "https://api.deepseek.com/v1",
-  });
+  const client = new Anthropic({ apiKey });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let stream: any;
+  let stream: Anthropic.MessageStream;
   try {
-    stream = await client.chat.completions.create({
-      model: "deepseek-chat",
-      temperature: 0.2,
+    stream = client.messages.stream({
+      model: "claude-sonnet-5-20251101",
       max_tokens: 4096,
-      stream: true,
+      temperature: 0.2,
       messages: [
         {
           role: "user",
           content: [
             {
-              type: "image_url",
-              image_url: { url: `data:image/jpeg;base64,${base64}` },
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: "image/jpeg",
+                data: base64,
+              },
             },
             {
               type: "text",
@@ -158,8 +157,8 @@ export async function POST(
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[ux-analysis] DeepSeek API error:", msg);
-    return NextResponse.json({ error: `DeepSeek API error: ${msg}` }, { status: 500 });
+    console.error("[ux-analysis] Anthropic API error:", msg);
+    return NextResponse.json({ error: `AI API error: ${msg}` }, { status: 500 });
   }
 
   const readable = new ReadableStream({
@@ -167,8 +166,12 @@ export async function POST(
       const encoder = new TextEncoder();
       try {
         for await (const chunk of stream) {
-          const text = chunk.choices[0]?.delta?.content ?? "";
-          if (text) controller.enqueue(encoder.encode(text));
+          if (
+            chunk.type === "content_block_delta" &&
+            chunk.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(chunk.delta.text));
+          }
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);

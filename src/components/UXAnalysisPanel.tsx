@@ -173,7 +173,7 @@ export function UXAnalysisPanel({ pageId, device, screenshotUrl }: Props) {
       setStatus("done");
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
-        setErrorMsg("Request failed — check your DEEPSEEK_API_KEY environment variable.");
+        setErrorMsg("Request failed — check your ANTHROPIC_API_KEY environment variable.");
         setStatus("error");
       }
     }
@@ -204,7 +204,7 @@ export function UXAnalysisPanel({ pageId, device, screenshotUrl }: Props) {
       <div className="flex items-center justify-between mb-5">
         <div>
           <p className="text-xs text-white/40">
-            AI-powered UX audit · {device} screenshot · DeepSeek V4 Pro
+            AI-powered UX audit · {device} screenshot · Claude Vision
           </p>
         </div>
         <button
