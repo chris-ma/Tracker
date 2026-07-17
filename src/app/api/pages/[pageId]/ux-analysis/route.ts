@@ -132,27 +132,35 @@ export async function POST(
     baseURL: "https://api.deepseek.com/v1",
   });
 
-  const stream = await client.chat.completions.create({
-    model: "deepseek-v4-pro",
-    temperature: 0.2,
-    max_tokens: 4096,
-    stream: true,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: `data:image/jpeg;base64,${base64}` },
-          },
-          {
-            type: "text",
-            text: UX_PROMPT,
-          },
-        ],
-      },
-    ],
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let stream: any;
+  try {
+    stream = await client.chat.completions.create({
+      model: "deepseek-chat",
+      temperature: 0.2,
+      max_tokens: 4096,
+      stream: true,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: `data:image/jpeg;base64,${base64}` },
+            },
+            {
+              type: "text",
+              text: UX_PROMPT,
+            },
+          ],
+        },
+      ],
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[ux-analysis] DeepSeek API error:", msg);
+    return NextResponse.json({ error: `DeepSeek API error: ${msg}` }, { status: 500 });
+  }
 
   const readable = new ReadableStream({
     async start(controller) {
@@ -162,6 +170,9 @@ export async function POST(
           const text = chunk.choices[0]?.delta?.content ?? "";
           if (text) controller.enqueue(encoder.encode(text));
         }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[ux-analysis] stream error:", msg);
       } finally {
         controller.close();
       }
