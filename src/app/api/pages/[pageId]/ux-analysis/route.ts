@@ -134,9 +134,8 @@ export async function POST(
       const encoder = new TextEncoder();
       try {
         const stream = client.messages.stream({
-          model: "claude-sonnet-5-20251101",
+          model: "claude-sonnet-5",
           max_tokens: 4096,
-          temperature: 0.2,
           messages: [
             {
               role: "user",
