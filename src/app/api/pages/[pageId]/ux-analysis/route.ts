@@ -129,42 +129,34 @@ export async function POST(
 
   const client = new Anthropic({ apiKey });
 
-  let stream: Anthropic.MessageStream;
-  try {
-    stream = client.messages.stream({
-      model: "claude-sonnet-5-20251101",
-      max_tokens: 4096,
-      temperature: 0.2,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: "image/jpeg",
-                data: base64,
-              },
-            },
-            {
-              type: "text",
-              text: UX_PROMPT,
-            },
-          ],
-        },
-      ],
-    });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[ux-analysis] Anthropic API error:", msg);
-    return NextResponse.json({ error: `AI API error: ${msg}` }, { status: 500 });
-  }
-
   const readable = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
       try {
+        const stream = client.messages.stream({
+          model: "claude-sonnet-5-20251101",
+          max_tokens: 4096,
+          temperature: 0.2,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: "image/jpeg",
+                    data: base64,
+                  },
+                },
+                {
+                  type: "text",
+                  text: UX_PROMPT,
+                },
+              ],
+            },
+          ],
+        });
         for await (const chunk of stream) {
           if (
             chunk.type === "content_block_delta" &&
